@@ -22,8 +22,11 @@ public class EasyIPMixerConstant {
 	public static final String CROSSPOINT = "Crosspoint";
 	public static final String MUTE = "Mute";
 	public static final String CURRENT_VALUE = "CurrentValue";
-	public static final String VOLUME = "Volume(dB)";
-	public static final String GAIN = "Gain(dB)";
+	public static final String VOLUME_DB = "Volume(dB)";
+	public static final String GAIN_DB = "Gain(dB)";
+	public static final String VOLUME = "Volume";
+	public static final String GAIN = "Gain";
+	public static final String ROUTE = "Route";
 	public static final String HASH = "#";
 	public static final String DOT = ".";
 	public static final String DOT_REGEX = "\\.";

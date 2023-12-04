@@ -56,4 +56,13 @@ public enum SourceValueEnum {
 
 		return matchedEnum != null ? matchedEnum.getValue() : null;
 	}
+
+	public static String getNameByValue(String value) {
+		SourceValueEnum matchedEnum = Arrays.stream(SourceValueEnum.values())
+				.filter(definition -> definition.getValue().equals(value))
+				.findFirst()
+				.orElse(null);
+
+		return matchedEnum != null ? matchedEnum.getName() : null;
+	}
 }

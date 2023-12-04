@@ -10,6 +10,7 @@ import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,6 +18,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.springframework.util.CollectionUtils;
 
@@ -29,6 +31,7 @@ import com.avispl.symphony.api.dal.dto.monitor.ExtendedStatistics;
 import com.avispl.symphony.api.dal.dto.monitor.Statistics;
 import com.avispl.symphony.api.dal.monitor.Monitorable;
 import com.avispl.symphony.dal.avdevices.mixer.vaddio.easyip.common.EasyIPMixerConstant;
+import com.avispl.symphony.dal.avdevices.mixer.vaddio.easyip.common.EasyIPMixerProperty;
 import com.avispl.symphony.dal.avdevices.mixer.vaddio.easyip.common.EasyIpMixerCommand;
 import com.avispl.symphony.dal.avdevices.mixer.vaddio.easyip.common.MonitoringCommand;
 import com.avispl.symphony.dal.avdevices.mixer.vaddio.easyip.common.NetworkInformation;
@@ -36,7 +39,10 @@ import com.avispl.symphony.dal.avdevices.mixer.vaddio.easyip.common.StreamSettin
 import com.avispl.symphony.dal.avdevices.mixer.vaddio.easyip.common.VersionInformation;
 import com.avispl.symphony.dal.avdevices.mixer.vaddio.easyip.common.audio.AudioInput;
 import com.avispl.symphony.dal.avdevices.mixer.vaddio.easyip.common.audio.AudioOutput;
+import com.avispl.symphony.dal.avdevices.mixer.vaddio.easyip.common.camera.CCUSceneValueEnum;
 import com.avispl.symphony.dal.avdevices.mixer.vaddio.easyip.common.camera.CameraColorSettings;
+import com.avispl.symphony.dal.avdevices.mixer.vaddio.easyip.common.camera.PresetValueEnum;
+import com.avispl.symphony.dal.avdevices.mixer.vaddio.easyip.common.video.SourceValueEnum;
 import com.avispl.symphony.dal.communicator.SshCommunicator;
 import com.avispl.symphony.dal.util.StringUtils;
 
@@ -156,6 +162,7 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 				convertConfigManagement();
 				convertEnableCrosspointGain();
 				retrieveAllData();
+				populateAllData(stats, controlStats, advancedControllableProperties);
 				if (isConfigManagement) {
 					stats.putAll(controlStats);
 					extendedStatistics.setControllableProperties(advancedControllableProperties);
@@ -433,6 +440,212 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 	}
 
 	/**
+	 * Populates all necessary data for monitoring and controlling based on the specified polling interval.
+	 *
+	 * @param stats The map to store statistics-related data.
+	 * @param controlStats The map to store control-related data.
+	 * @param advancedControllableProperties The list of advanced controllable properties.
+	 */
+	private void populateAllData(Map<String, String> stats, Map<String, String> controlStats, List<AdvancedControllableProperty> advancedControllableProperties) {
+		populateMonitoringAndControllingData(stats, controlStats, advancedControllableProperties);
+		populateEnabledRoute(controlStats, advancedControllableProperties);
+		if (numOfPollingInterval == 2) {
+			populateAudioVolume(controlStats, advancedControllableProperties);
+		}
+		if (numOfPollingInterval == 4) {
+			populateAudioVolume(controlStats, advancedControllableProperties);
+			populateCrossPointGain(controlStats, advancedControllableProperties);
+		}
+	}
+
+	/**
+	 * Populates the monitoring and controlling data for various properties based on defined rules and configurations.
+	 *
+	 * @param stats Map containing monitoring statistics
+	 * @param controlStats Map containing control-related statistics
+	 * @param advancedControllableProperties List of advanced controllable properties
+	 */
+	private void populateMonitoringAndControllingData(Map<String, String> stats, Map<String, String> controlStats, List<AdvancedControllableProperty> advancedControllableProperties) {
+		String value;
+		String propertyName;
+		for (EasyIPMixerProperty property : EasyIPMixerProperty.values()) {
+			propertyName = property.getGroup().concat(property.getName());
+			value = getDefaultValueForNullData(cacheKeyAndValue.get(propertyName));
+			switch (property) {
+				case CAMERA_PAN:
+					addAdvancedControlProperties(advancedControllableProperties, controlStats, createSlider(stats, propertyName, "-150", "150", -150.0f, 150.0f, Float.parseFloat(value)), value);
+					controlStats.put(propertyName + EasyIPMixerConstant.CURRENT_VALUE, value);
+					break;
+				case CAMERA_TILT:
+					addAdvancedControlProperties(advancedControllableProperties, controlStats, createSlider(stats, propertyName, "-30", "90", -30.0f, 90.0f, Float.parseFloat(value)), value);
+					controlStats.put(propertyName + EasyIPMixerConstant.CURRENT_VALUE, value);
+					break;
+				case CAMERA_ZOOM:
+					addAdvancedControlProperties(advancedControllableProperties, controlStats, createSlider(stats, propertyName, "1", "20", -1.0f, 20.0f, Float.parseFloat(value)), value);
+					controlStats.put(propertyName + EasyIPMixerConstant.CURRENT_VALUE, value);
+					break;
+				case GAIN:
+				case IRIS:
+				case GAMMA:
+				case CHROMA:
+				case DETAIL:
+				case RED_GAIN:
+				case BLUE_GAIN:
+					if (EasyIPMixerConstant.NONE.equals(value)) {
+						controlStats.put(propertyName, value);
+					} else {
+						CameraColorSettings colorSettings = CameraColorSettings.getByName(property.getName());
+						addAdvancedControlProperties(advancedControllableProperties, controlStats,
+								createSlider(stats, propertyName, colorSettings.getMinValue(), colorSettings.getMaxValue(), Float.parseFloat(colorSettings.getMinValue()),
+										Float.parseFloat(colorSettings.getMaxValue()),
+										Float.parseFloat(value)), value);
+						controlStats.put(propertyName + EasyIPMixerConstant.CURRENT_VALUE, value);
+					}
+					break;
+				case CAMERA_FOCUS_MODE:
+					String status = "on".equals(value) ? "1" : "0";
+					addAdvancedControlProperties(advancedControllableProperties, controlStats, createSwitch(propertyName, Integer.parseInt(status), "Manual", "Auto"), status);
+					break;
+				case CAMERA_HOME:
+					addAdvancedControlProperties(advancedControllableProperties, controlStats, createButton(propertyName, "Set", "Setting", 0), EasyIPMixerConstant.NONE);
+					break;
+				case SYSTEM_REBOOT:
+					addAdvancedControlProperties(advancedControllableProperties, controlStats, createButton(propertyName, "Reboot", "Rebooting", 0), EasyIPMixerConstant.NONE);
+					break;
+				case CAMERA_STANDBY:
+				case VIDEO_MUTE:
+				case VIDEO_PIP:
+				case AUDIO_MUTE:
+				case SYSTEM_STANDBY:
+				case AUTO_IRIS:
+				case WIDE_DYNAMIC_RANGE:
+				case AUTO_WHITE_BALANCE:
+				case BACKLIGHT_COMPENSETION:
+					if (EasyIPMixerConstant.NONE.equals(value)) {
+						controlStats.put(propertyName, value);
+					} else {
+						status = "on".equals(value) ? "1" : "0";
+						addAdvancedControlProperties(advancedControllableProperties, controlStats, createSwitch(propertyName, Integer.parseInt(status), "Off", "On"), status);
+					}
+					break;
+				case CAMERA_PRESET:
+					List<String> arrayValues = Arrays.stream(PresetValueEnum.values()).map(PresetValueEnum::getName).collect(Collectors.toList());
+					arrayValues.add(0, "Please select a preset");
+					addAdvancedControlProperties(advancedControllableProperties, controlStats, createDropdown(propertyName, arrayValues.toArray(new String[0]), "Please select a preset"),
+							"Please select a preset");
+					break;
+				case CAMERA_CCU_SCENE:
+					arrayValues = Arrays.stream(CCUSceneValueEnum.values()).map(CCUSceneValueEnum::getName).collect(Collectors.toList());
+					arrayValues.add(0, "Please select a CCU Scene");
+					addAdvancedControlProperties(advancedControllableProperties, controlStats, createDropdown(propertyName, arrayValues.toArray(new String[0]), "Please select a CCU Scene"),
+							"Please select a CCU Scene");
+					break;
+				case VIDEO_SOURCE:
+					if (EasyIPMixerConstant.NONE.equals(value)) {
+						controlStats.put(propertyName, value);
+					} else {
+						arrayValues = Arrays.stream(SourceValueEnum.values()).map(SourceValueEnum::getName).collect(Collectors.toList());
+						addAdvancedControlProperties(advancedControllableProperties, controlStats, createDropdown(propertyName, arrayValues.toArray(new String[0]), SourceValueEnum.getNameByValue(value)), value);
+					}
+					break;
+				default:
+					stats.put(propertyName, uppercaseFirstCharacter(value));
+					break;
+			}
+		}
+	}
+
+	/**
+	 * Populates audio volume-related statistics and controls based on provided audio properties.
+	 *
+	 * @param stats Map containing audio-related statistics
+	 * @param advancedControllableProperties List of advanced controllable properties for audio
+	 */
+	private void populateAudioVolume(Map<String, String> stats, List<AdvancedControllableProperty> advancedControllableProperties) {
+		String mutePropertyName;
+		String volumePropertyName;
+		String muteValue;
+		String volumeValue;
+		List<String> propertyNameList = Stream.concat(
+				Arrays.stream(AudioInput.values()).map(AudioInput::getPropertyName),
+				Arrays.stream(AudioOutput.values()).map(AudioOutput::getPropertyName)).collect(Collectors.toList());
+
+		for (String propertyName : propertyNameList) {
+			mutePropertyName = propertyName + EasyIPMixerConstant.HASH + EasyIPMixerConstant.MUTE;
+			volumePropertyName = propertyName + EasyIPMixerConstant.HASH + EasyIPMixerConstant.VOLUME_DB;
+
+			volumeValue = getDefaultValueForNullData(cacheKeyAndValue.get(volumePropertyName));
+			muteValue = getDefaultValueForNullData(cacheKeyAndValue.get(mutePropertyName));
+
+			//Mute
+			if (EasyIPMixerConstant.NONE.equals(muteValue)) {
+				stats.put(mutePropertyName, EasyIPMixerConstant.NONE);
+			} else {
+				String status = "on".equals(muteValue) ? "1" : "0";
+				addAdvancedControlProperties(advancedControllableProperties, stats, createSwitch(mutePropertyName, Integer.parseInt(status), "Off", "On"), status);
+			}
+
+			//Volume
+			if (EasyIPMixerConstant.NONE.equals(volumeValue)) {
+				stats.put(volumePropertyName, EasyIPMixerConstant.NONE);
+			} else {
+				addAdvancedControlProperties(advancedControllableProperties, stats, createSlider(stats, volumePropertyName, "-42", "6", -42.0f, 6.0f, Float.parseFloat(volumeValue)), volumeValue);
+				stats.put(propertyName + EasyIPMixerConstant.HASH + "VolumeCurrentValue(dB)", volumeValue);
+			}
+		}
+	}
+
+	/**
+	 * Populates the enabled routes for audio inputs and outputs, creating related statistics and controls.
+	 *
+	 * @param stats Map containing audio-related statistics
+	 * @param advancedControllableProperties List of advanced controllable properties for audio
+	 */
+	private void populateEnabledRoute(Map<String, String> stats, List<AdvancedControllableProperty> advancedControllableProperties) {
+		String value;
+		String propertyName;
+		String status;
+		for (AudioOutput output : AudioOutput.values()) {
+			String group = output.getPropertyName();
+			String localCacheName = EasyIPMixerConstant.CROSSPOINT + output.getPropertyName() + EasyIPMixerConstant.HASH + output.getPropertyName();
+			String cacheValue = getDefaultValueForNullData(cacheKeyAndValue.get(localCacheName));
+			for (AudioInput input : AudioInput.values()) {
+				propertyName = EasyIPMixerConstant.CROSSPOINT + group + EasyIPMixerConstant.HASH + input.getPropertyName() + EasyIPMixerConstant.ROUTE;
+				value = input.getValue();
+				status = "0";
+				if (cacheValue.contains(value)) {
+					status = "1";
+				}
+				addAdvancedControlProperties(advancedControllableProperties, stats, createSwitch(propertyName, Integer.parseInt(status), "Off", "On"), status);
+			}
+		}
+	}
+
+	/**
+	 * Populates the cross-point gains for audio inputs and outputs, creating related statistics and controls.
+	 *
+	 * @param stats Map containing audio-related statistics
+	 * @param advancedControllableProperties List of advanced controllable properties for audio
+	 */
+	private void populateCrossPointGain(Map<String, String> stats, List<AdvancedControllableProperty> advancedControllableProperties) {
+		String value;
+		String propertyName;
+		for (AudioOutput output : AudioOutput.values()) {
+			String group = output.getPropertyName();
+			for (AudioInput input : AudioInput.values()) {
+				propertyName = EasyIPMixerConstant.CROSSPOINT + group + EasyIPMixerConstant.HASH + input.getPropertyName() + "Gain(dB)";
+				value = getDefaultValueForNullData(cacheKeyAndValue.get(propertyName));
+				if (EasyIPMixerConstant.NONE.equals(value)) {
+					stats.put(propertyName, value);
+				} else {
+					addAdvancedControlProperties(advancedControllableProperties, stats, createSlider(stats, propertyName, "-12", "12", -12.0f, 12.0f, Float.parseFloat(value)), value);
+					stats.put(EasyIPMixerConstant.CROSSPOINT + group + EasyIPMixerConstant.HASH + input.getPropertyName() + "GainCurrentValue(dB)", value);
+				}
+			}
+		}
+	}
+
+	/**
 	 * Send command detail to get the data from device
 	 *
 	 * @param command the command is command to get data
@@ -492,5 +705,124 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 	 */
 	private void convertEnableCrosspointGain() {
 		isEnableCrosspointGain = StringUtils.isNotNullOrEmpty(this.enableCrosspointGain) && this.enableCrosspointGain.equalsIgnoreCase(EasyIPMixerConstant.TRUE);
+	}
+
+	/**
+	 * check value is null or empty
+	 *
+	 * @param value input value
+	 * @return value after checking
+	 */
+	private String getDefaultValueForNullData(String value) {
+		return StringUtils.isNotNullOrEmpty(value) ? value : EasyIPMixerConstant.NONE;
+	}
+
+	/**
+	 * capitalize the first character of the string
+	 *
+	 * @param input input string
+	 * @return string after fix
+	 */
+	private String uppercaseFirstCharacter(String input) {
+		char firstChar = input.charAt(0);
+		return Character.toUpperCase(firstChar) + input.substring(1);
+	}
+
+	/**
+	 * Add advancedControllableProperties if advancedControllableProperties different empty
+	 *
+	 * @param advancedControllableProperties advancedControllableProperties is the list that store all controllable properties
+	 * @param stats store all statistics
+	 * @param property the property is item advancedControllableProperties
+	 * @return String response
+	 * @throws IllegalStateException when exception occur
+	 */
+	private void addAdvancedControlProperties(List<AdvancedControllableProperty> advancedControllableProperties, Map<String, String> stats, AdvancedControllableProperty property, String value) {
+		if (property != null) {
+			for (AdvancedControllableProperty controllableProperty : advancedControllableProperties) {
+				if (controllableProperty.getName().equals(property.getName())) {
+					advancedControllableProperties.remove(controllableProperty);
+					break;
+				}
+			}
+			if (StringUtils.isNotNullOrEmpty(value)) {
+				stats.put(property.getName(), value);
+			} else {
+				stats.put(property.getName(), EasyIPMixerConstant.EMPTY);
+			}
+			advancedControllableProperties.add(property);
+		}
+	}
+
+	/**
+	 * Create switch is control property for metric
+	 *
+	 * @param name the name of property
+	 * @param status initial status (0|1)
+	 * @return AdvancedControllableProperty switch instance
+	 */
+	private AdvancedControllableProperty createSwitch(String name, int status, String labelOff, String labelOn) {
+		AdvancedControllableProperty.Switch toggle = new AdvancedControllableProperty.Switch();
+		toggle.setLabelOff(labelOff);
+		toggle.setLabelOn(labelOn);
+
+		AdvancedControllableProperty advancedControllableProperty = new AdvancedControllableProperty();
+		advancedControllableProperty.setName(name);
+		advancedControllableProperty.setValue(status);
+		advancedControllableProperty.setType(toggle);
+		advancedControllableProperty.setTimestamp(new Date());
+
+		return advancedControllableProperty;
+	}
+
+	/**
+	 * Create a button.
+	 *
+	 * @param name name of the button
+	 * @param label label of the button
+	 * @param labelPressed label of the button after pressing it
+	 * @param gracePeriod grace period of button
+	 * @return This returns the instance of {@link AdvancedControllableProperty} type Button.
+	 */
+	private AdvancedControllableProperty createButton(String name, String label, String labelPressed, long gracePeriod) {
+		AdvancedControllableProperty.Button button = new AdvancedControllableProperty.Button();
+		button.setLabel(label);
+		button.setLabelPressed(labelPressed);
+		button.setGracePeriod(gracePeriod);
+		return new AdvancedControllableProperty(name, new Date(), button, "");
+	}
+
+	/***
+	 * Create dropdown advanced controllable property
+	 *
+	 * @param name the name of the control
+	 * @param initialValue initial value of the control
+	 * @return AdvancedControllableProperty dropdown instance
+	 */
+	private AdvancedControllableProperty createDropdown(String name, String[] values, String initialValue) {
+		AdvancedControllableProperty.DropDown dropDown = new AdvancedControllableProperty.DropDown();
+		dropDown.setOptions(values);
+		dropDown.setLabels(values);
+
+		return new AdvancedControllableProperty(name, new Date(), dropDown, initialValue);
+	}
+
+	/***
+	 * Create AdvancedControllableProperty slider instance
+	 *
+	 * @param stats extended statistics
+	 * @param name name of the control
+	 * @param initialValue initial value of the control
+	 * @return AdvancedControllableProperty slider instance
+	 */
+	private AdvancedControllableProperty createSlider(Map<String, String> stats, String name, String labelStart, String labelEnd, Float rangeStart, Float rangeEnd, Float initialValue) {
+		stats.put(name, initialValue.toString());
+		AdvancedControllableProperty.Slider slider = new AdvancedControllableProperty.Slider();
+		slider.setLabelStart(labelStart);
+		slider.setLabelEnd(labelEnd);
+		slider.setRangeStart(rangeStart);
+		slider.setRangeEnd(rangeEnd);
+
+		return new AdvancedControllableProperty(name, new Date(), slider, initialValue);
 	}
 }
