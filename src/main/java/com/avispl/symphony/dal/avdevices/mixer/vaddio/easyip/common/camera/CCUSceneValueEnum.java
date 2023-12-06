@@ -53,6 +53,12 @@ public enum CCUSceneValueEnum {
 		return value;
 	}
 
+	/**
+	 * Retrieves the value associated with the given name from the CCUSceneValueEnum.
+	 *
+	 * @param name the name of the property to search for in the CCUSceneValueEnum
+	 * @return the value associated with the given name if found, or null if not found
+	 */
 	public static String getValueByName(String name) {
 		CCUSceneValueEnum matchedEnum = Arrays.stream(CCUSceneValueEnum.values())
 				.filter(definition -> definition.getName().equals(name))

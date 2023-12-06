@@ -17,8 +17,8 @@ public enum NetworkInformation {
 	MAC_ADDRESS("MACAddress", "MAC Address(.*?)\r\n"),
 	IP_ADDRESS("IPAddress", "IP Address(.*?)\r\n"),
 	SUBNET_MASK("SubnetMask", "Netmask(.*?)\r\n"),
-	VLAN("VLAN", "VLAN(.*?)\r\n"),
 	GATEWAY("Gateway", "Gateway(.*?)\r\n"),
+	HOSTNAME("Hostname", "Hostname(.*?)\r\n"),
 	;
 
 	/**

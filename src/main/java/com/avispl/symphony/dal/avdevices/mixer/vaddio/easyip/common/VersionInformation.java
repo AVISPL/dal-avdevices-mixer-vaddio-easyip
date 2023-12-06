@@ -8,9 +8,14 @@ package com.avispl.symphony.dal.avdevices.mixer.vaddio.easyip.common;
  * @since 1.0.0
  */
 public enum VersionInformation {
-	AUDIO("AudioVersion", "Audio(.*?)\r\n"),
+	AUDIO_0("Audio0", "Audio 0(.*?)\r\n"),
+	AUDIO_1("Audio1", "Audio 1(.*?)\r\n"),
 	SYSTEM_VERSION("SystemVersion", "System Version(.*?)\r\n"),
-	USB_VERSION("USBVersion", "USB(.*?)\r\n"),
+	USB_VERSION("USB", "USB(.*?)\r\n"),
+	DANTE_CORE("DanteCore", "Dante Core(.*?)\r\n"),
+	DANTE_APP("DanteApp", "Dante App(.*?)\r\n"),
+	VIDEO_HW("VideoHW", "Video HW(.*?)\r\n"),
+	VIDEO_SW("VideoSW", "Video SW(.*?)\r\n"),
 	;
 
 	/**

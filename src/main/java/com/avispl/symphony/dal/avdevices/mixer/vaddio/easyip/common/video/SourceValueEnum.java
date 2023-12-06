@@ -11,10 +11,10 @@ import java.util.Arrays;
  */
 public enum SourceValueEnum {
 	INPUT_1("HDMI in", "input1"),
-	INPUT_2("Input 2", "input2"),
-	INPUT_3("Input 2", "input3"),
-	INPUT_4("Input 2", "input4"),
-	INPUT_5("Input 2", "input5"),
+	INPUT_2("Easy IP 1", "input2"),
+	INPUT_3("Easy IP 2", "input3"),
+	INPUT_4("Easy IP 3", "input4"),
+	INPUT_5("Easy IP 4", "input5"),
 
 	;
 	private final String name;
@@ -22,8 +22,6 @@ public enum SourceValueEnum {
 
 	/**
 	 *
-	 * @param name
-	 * @param value
 	 */
 	SourceValueEnum(String name, String value) {
 		this.name = name;
@@ -48,6 +46,12 @@ public enum SourceValueEnum {
 		return value;
 	}
 
+	/**
+	 * Retrieves the value associated with the given name from the SourceValueEnum.
+	 *
+	 * @param name the name of the property to search for in the SourceValueEnum
+	 * @return the value associated with the given name if found, or null if not found
+	 */
 	public static String getValueByName(String name) {
 		SourceValueEnum matchedEnum = Arrays.stream(SourceValueEnum.values())
 				.filter(definition -> definition.getName().equals(name))
@@ -57,6 +61,12 @@ public enum SourceValueEnum {
 		return matchedEnum != null ? matchedEnum.getValue() : null;
 	}
 
+	/**
+	 * Retrieves the name associated with the given value from the SourceValueEnum.
+	 *
+	 * @param value the value of the property to search for in the SourceValueEnum
+	 * @return the name associated with the given value if found, or null if not found
+	 */
 	public static String getNameByValue(String value) {
 		SourceValueEnum matchedEnum = Arrays.stream(SourceValueEnum.values())
 				.filter(definition -> definition.getValue().equals(value))

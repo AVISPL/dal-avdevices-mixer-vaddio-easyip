@@ -15,10 +15,11 @@ public class EasyIPMixerConstant {
 	public static final String EMPTY = "";
 	public static final String NONE = "None";
 	public static final String REGEX_RESPONSE = "\u001B|\\[|0;37m|0m";
-	public static final String CAMERA_SETTINGS_GROUP = "CameraSettings#";
+	public static final String CAMERA_SETTINGS_GROUP = "VideoInputEasyIP1#";
 	public static final String NETWORK_GROUP = "NetworkSettings#";
-	public static final String STREAMING_GROUP = "StreamingSettings#";
-	public static final String CAMERA_COLOR_GROUP = "CameraColor#";
+	public static final String VIDEO_OUTPUT = "VideoOutput#";
+	public static final String CAMERA_COLOR_GROUP = "VideoInputEasyIP1#";
+	public static final String SYSTEM_INFORMATION_GROUP = "SystemInformation#";
 	public static final String CROSSPOINT = "Crosspoint";
 	public static final String MUTE = "Mute";
 	public static final String CURRENT_VALUE = "CurrentValue";
@@ -31,6 +32,15 @@ public class EasyIPMixerConstant {
 	public static final String DOT = ".";
 	public static final String DOT_REGEX = "\\.";
 	public static final String DASH = "-";
+	public static final String SPACE = " ";
 	public static final String ERROR_RESPONSE = "Syntax error";
 	public static final String OK = "OK";
+	public static final String NUMBER_ONE = "1";
+	public static final String ZERO = "0";
+	public static final String ON = "On";
+	public static final String OFF = "Off";
+	public static final String ON_VALUE = "on";
+	public static final String OFF_VALUE = "off";
+	public static final String MUTE_REGEX = "mute:(.*?)\r\n";
+	public static final String VOLUME_REGEX = "volume:(.*?)\r\n";
 }

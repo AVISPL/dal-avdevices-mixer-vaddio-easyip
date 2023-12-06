@@ -13,13 +13,13 @@ import java.util.Optional;
 public enum CameraColorSettings {
 	AUTO_IRIS("AutoIris", "auto_iris(.*?)\r\n", "", ""),
 	AUTO_WHITE_BALANCE("AutoWhiteBalance", "auto_white_balance(.*?)\r\n", "", ""),
-	BACKLIGHT_COMPENSETION("BacklightCompensetion", "backlight_compensation(.*?)\r\n", "", ""),
+	BACKLIGHT_COMPENSATION("BacklightCompensation", "backlight_compensation(.*?)\r\n", "", ""),
 	BLUE_GAIN("BlueGain", "blue_gain(.*?)\r\n", "0", "255"),
 	CHROMA("Chroma", "chroma(.*?)\r\n", "0", "14"),
 	DETAIL("Detail", "detail(.*?)\r\n", "0", "15"),
-	GAIN("Gain", "gain(.*?)\r\n", "0", "11"),
-	GAMMA("Gamma", "gamma(.*?)\r\n", "-16", "64"),
-	IRIS("Iris", "iris(.*?)\r\n", "0", "11"),
+	GAIN("Gain(dB)", "gain(.*?)\r\n", "1", "12"),
+	GAMMA("Gamma", "gamma(.*?)\r\n", "-64", "64"),
+	IRIS("Iris", "iris(.*?)\r\n", "0", "21"),
 	RED_GAIN("RedGain", "red_gain(.*?)\r\n", "0", "255"),
 	WIDE_DYNAMIC_RANGE("WideDynamicRange", "wide_dynamic_range(.*?)\r\n", "", ""),
 	;
@@ -78,6 +78,13 @@ public enum CameraColorSettings {
 		return maxValue;
 	}
 
+	/**
+	 * Retrieves the CameraColorSettings enum associated with the given name.
+	 *
+	 * @param name the name of the CameraColorSettings enum to search for
+	 * @return the CameraColorSettings enum matching the given name
+	 * @throws IllegalStateException if the provided name does not match any CameraColorSettings enum
+	 */
 	public static CameraColorSettings getByName(String name) {
 		Optional<CameraColorSettings> property = Arrays.stream(CameraColorSettings.values()).filter(group -> group.getName().equals(name)).findFirst();
 		if (property.isPresent()) {

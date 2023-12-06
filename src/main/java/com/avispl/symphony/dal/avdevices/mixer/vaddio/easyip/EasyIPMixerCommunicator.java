@@ -35,12 +35,13 @@ import com.avispl.symphony.dal.avdevices.mixer.vaddio.easyip.common.EasyIPMixerP
 import com.avispl.symphony.dal.avdevices.mixer.vaddio.easyip.common.EasyIpMixerCommand;
 import com.avispl.symphony.dal.avdevices.mixer.vaddio.easyip.common.MonitoringCommand;
 import com.avispl.symphony.dal.avdevices.mixer.vaddio.easyip.common.NetworkInformation;
-import com.avispl.symphony.dal.avdevices.mixer.vaddio.easyip.common.StreamSettings;
 import com.avispl.symphony.dal.avdevices.mixer.vaddio.easyip.common.VersionInformation;
 import com.avispl.symphony.dal.avdevices.mixer.vaddio.easyip.common.audio.AudioInput;
 import com.avispl.symphony.dal.avdevices.mixer.vaddio.easyip.common.audio.AudioOutput;
 import com.avispl.symphony.dal.avdevices.mixer.vaddio.easyip.common.camera.CCUSceneValueEnum;
 import com.avispl.symphony.dal.avdevices.mixer.vaddio.easyip.common.camera.CameraColorSettings;
+import com.avispl.symphony.dal.avdevices.mixer.vaddio.easyip.common.camera.GainValueEnum;
+import com.avispl.symphony.dal.avdevices.mixer.vaddio.easyip.common.camera.IrisValueEnum;
 import com.avispl.symphony.dal.avdevices.mixer.vaddio.easyip.common.camera.PresetValueEnum;
 import com.avispl.symphony.dal.avdevices.mixer.vaddio.easyip.common.video.SourceValueEnum;
 import com.avispl.symphony.dal.communicator.SshCommunicator;
@@ -64,15 +65,6 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 	 * count the failed command
 	 */
 	private final Map<String, String> failedMonitor = new HashMap<>();
-
-	/**
-	 * the getMultipleStatistics interval if it's fail to doGet the cmd
-	 */
-	private static final int controlSSHTimeout = 3000;
-	/**
-	 * Set back to default timeout value in {@link SshCommunicator}
-	 */
-	private static final int statisticsSSHTimeout = 30000;
 
 	/**
 	 * ReentrantLock to prevent telnet session is closed when adapter is retrieving statistics from the device.
@@ -138,10 +130,28 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 	}
 
 	/**
+	 * Retrieves {@link #enableCrosspointGain}
+	 *
+	 * @return value of {@link #enableCrosspointGain}
+	 */
+	public String getEnableCrosspointGain() {
+		return enableCrosspointGain;
+	}
+
+	/**
+	 * Sets {@link #enableCrosspointGain} value
+	 *
+	 * @param enableCrosspointGain new value of {@link #enableCrosspointGain}
+	 */
+	public void setEnableCrosspointGain(String enableCrosspointGain) {
+		this.enableCrosspointGain = enableCrosspointGain;
+	}
+
+	/**
 	 * MiddleAtlanticPowerUnitCommunicator constructor
 	 */
 	public EasyIPMixerCommunicator() {
-		this.setCommandErrorList(Collections.singletonList("Error: response error"));
+		this.setCommandErrorList(Collections.singletonList("Syntax error: Unknown or incomplete command"));
 		this.setCommandSuccessList(Collections.singletonList("> "));
 		this.setLoginSuccessList(Collections.singletonList("********************************************\r\n        \r\nWelcome admin\r\n> "));
 		this.setLoginErrorList(Collections.singletonList("Permission denied, please try again."));
@@ -167,11 +177,9 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 					stats.putAll(controlStats);
 					extendedStatistics.setControllableProperties(advancedControllableProperties);
 				}
-				stats.putAll(controlStats);
-				extendedStatistics.setControllableProperties(advancedControllableProperties);
 				extendedStatistics.setStatistics(stats);
+				localExtendedStatistics = extendedStatistics;
 			}
-			localExtendedStatistics = extendedStatistics;
 			isEmergencyDelivery = false;
 		} finally {
 			reentrantLock.unlock();
@@ -183,20 +191,281 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void controlProperty(ControllableProperty controllableProperty) {
+	public void controlProperty(ControllableProperty controllableProperty) throws Exception {
 		String property = controllableProperty.getProperty();
 		String value = String.valueOf(controllableProperty.getValue());
+		Map<String, String> stats = this.localExtendedStatistics.getStatistics();
+		List<AdvancedControllableProperty> advancedControllableProperties = this.localExtendedStatistics.getControllableProperties();
 		if (logger.isDebugEnabled()) {
 			logger.debug(String.format("Perform control operation with property: %s and value: %s", property, value));
 		}
 		reentrantLock.lock();
 		try {
-			this.timeout = controlSSHTimeout;
 			if (localExtendedStatistics == null) {
+				if (logger.isDebugEnabled()) {
+					logger.debug(String.format("Error while controlling %s metric", property));
+				}
 				return;
 			}
+			isEmergencyDelivery = true;
+			String group = EasyIPMixerConstant.EMPTY;
+			String[] propertyList = property.split(EasyIPMixerConstant.HASH);
+			String propertyKey = property;
+			if (property.contains(EasyIPMixerConstant.HASH)) {
+				propertyKey = propertyList[1];
+				group = propertyList[0];
+			}
+
+			if (group.contains(EasyIPMixerConstant.CROSSPOINT)) {
+				//Crosspoint
+				String command;
+				String inputPropertyName;
+				String outputPropertyName = group.replace(EasyIPMixerConstant.CROSSPOINT, "");
+				if (propertyKey.contains(EasyIPMixerConstant.GAIN)) {
+					inputPropertyName = propertyKey.replace(EasyIPMixerConstant.GAIN_DB, "");
+					command = EasyIpMixerCommand.GAIN_CONTROL.replace("$1", AudioOutput.getValueByName(outputPropertyName)).replace("$2", AudioInput.getValueByName(inputPropertyName)).replace("$3", value);
+					sendCommandToControlDevice(command, value, propertyKey);
+					stats.put(group + EasyIPMixerConstant.HASH + inputPropertyName + "Gain" + "CurrentValue(dB)", value);
+					updateCachedDeviceData(cacheKeyAndValue, property, value);
+				}
+
+				if (propertyKey.contains(EasyIPMixerConstant.ROUTE)) {
+					inputPropertyName = propertyKey.replace(EasyIPMixerConstant.ROUTE, EasyIPMixerConstant.EMPTY);
+					String localName = group + EasyIPMixerConstant.HASH + outputPropertyName;
+					String localValue = cacheKeyAndValue.get(localName);
+					if (EasyIPMixerConstant.NUMBER_ONE.equals(value)) {
+						localValue = localValue + EasyIPMixerConstant.SPACE + AudioInput.getValueByName(inputPropertyName);
+					} else {
+						localValue = localValue.replace(AudioInput.getValueByName(inputPropertyName), EasyIPMixerConstant.EMPTY).replace("  ", EasyIPMixerConstant.SPACE);
+					}
+					command = EasyIpMixerCommand.ROUTE_CONTROL.replace("$1", AudioOutput.getValueByName(outputPropertyName)).replace("$2", localValue.trim());
+					sendCommandToControlDevice(command, value, propertyKey);
+					updateCachedDeviceData(cacheKeyAndValue, localName, localValue.trim());
+				}
+			} else if (checkAudioVolumeControl(group)) {
+				//Audio Volume
+				String command;
+				String audioValue = AudioInput.getValueByName(group);
+				if (EasyIPMixerConstant.NONE.equals(audioValue)) {
+					audioValue = AudioOutput.getValueByName(group);
+				}
+				switch (propertyKey) {
+					case EasyIPMixerConstant.VOLUME_DB:
+						if (!EasyIPMixerConstant.NONE.equals(audioValue)) {
+							command = EasyIpMixerCommand.VOLUME_CONTROL.replace("$1", audioValue).replace("$2", value);
+							sendCommandToControlDevice(command, value, EasyIPMixerConstant.VOLUME_DB);
+							stats.put(group + EasyIPMixerConstant.HASH + "VolumeCurrentValue(dB)", value);
+							updateCachedDeviceData(cacheKeyAndValue, property, value);
+						}
+						break;
+					case EasyIPMixerConstant.MUTE:
+						String status = getStatusSwitch(value);
+						if (!EasyIPMixerConstant.NONE.equals(audioValue)) {
+							command = EasyIpMixerCommand.MUTE_CONTROL.replace("$1", audioValue).replace("$2", status);
+							sendCommandToControlDevice(command, status, EasyIPMixerConstant.MUTE);
+							updateCachedDeviceData(cacheKeyAndValue, property, status);
+						}
+						break;
+					default:
+						logger.debug(String.format("Property name %s doesn't support", propertyKey));
+				}
+			} else {
+				EasyIPMixerProperty propertyItem = EasyIPMixerProperty.getByName(propertyKey);
+				switch (propertyItem) {
+					case SYSTEM_REBOOT:
+						sendCommandToControlDevice(propertyItem.getControlCommand(), "Reboot", propertyKey);
+						break;
+					case AUDIO_MUTE:
+						String status;
+						String command;
+						status = getStatusSwitch(value);
+						command = propertyItem.getControlCommand().replace("$", status);
+						sendCommandToControlDevice(command, status, propertyKey);
+						updateCachedDeviceData(cacheKeyAndValue, property, status);
+						retrieveAudioVolume();
+						populateAudioVolume(stats, advancedControllableProperties);
+						break;
+					case VIDEO_SOURCE:
+						String newValue = SourceValueEnum.getValueByName(value);
+						if (newValue != null) {
+							command = propertyItem.getControlCommand().replace("$", newValue);
+							sendCommandToControlDevice(command, value, propertyKey);
+							updateCachedDeviceData(cacheKeyAndValue, property, newValue);
+						}
+						break;
+					case VIDEO_MUTE:
+					case VIDEO_PIP:
+					case SYSTEM_STANDBY:
+					case CAMERA_STANDBY:
+						status = getStatusSwitch(value);
+						command = propertyItem.getControlCommand().replace("$", status);
+						sendCommandToControlDevice(command, status, propertyKey);
+						updateCachedDeviceData(cacheKeyAndValue, property, status);
+						break;
+					case BACKLIGHT_COMPENSATION:
+						status = getStatusSwitch(value);
+						command = propertyItem.getControlCommand().replace("$", status);
+						sendCommandToControlDevice(command, status, propertyKey);
+						updateCachedDeviceData(cacheKeyAndValue, property, status);
+						if ("on".equals(status)) {
+							String name = EasyIPMixerConstant.CAMERA_COLOR_GROUP + EasyIPMixerProperty.WIDE_DYNAMIC_RANGE.getName();
+							addAdvancedControlProperties(advancedControllableProperties, stats, createSwitch(name, 0, EasyIPMixerConstant.OFF, EasyIPMixerConstant.ON), "0");
+							updateCachedDeviceData(cacheKeyAndValue, name, "0");
+						}
+						break;
+					case WIDE_DYNAMIC_RANGE:
+						status = getStatusSwitch(value);
+						command = propertyItem.getControlCommand().replace("$", status);
+						sendCommandToControlDevice(command, status, propertyKey);
+						updateCachedDeviceData(cacheKeyAndValue, property, status);
+						if ("on".equals(status)) {
+							String name = EasyIPMixerConstant.CAMERA_COLOR_GROUP + EasyIPMixerProperty.BACKLIGHT_COMPENSATION.getName();
+							addAdvancedControlProperties(advancedControllableProperties, stats, createSwitch(name, 0, EasyIPMixerConstant.OFF, EasyIPMixerConstant.ON), "0");
+							updateCachedDeviceData(cacheKeyAndValue, name, "0");
+						}
+						break;
+					case AUTO_IRIS:
+						status = getStatusSwitch(value);
+						command = propertyItem.getControlCommand().replace("$", status);
+						sendCommandToControlDevice(command, status, propertyKey);
+						updateCachedDeviceData(cacheKeyAndValue, property, status);
+						if ("on".equals(status)) {
+							removeValueForTheControllableProperty(EasyIPMixerConstant.CAMERA_COLOR_GROUP + EasyIPMixerProperty.IRIS.getName(), stats, advancedControllableProperties);
+							removeValueForTheControllableProperty(EasyIPMixerConstant.CAMERA_COLOR_GROUP + EasyIPMixerProperty.GAIN.getName(), stats, advancedControllableProperties);
+							stats.remove(EasyIPMixerConstant.CAMERA_COLOR_GROUP + "IrisCurrentValue");
+							stats.remove(EasyIPMixerConstant.CAMERA_COLOR_GROUP + "GainCurrentValue(dB)");
+
+							String backlightCompensation = cacheKeyAndValue.get(EasyIPMixerConstant.CAMERA_COLOR_GROUP + EasyIPMixerProperty.BACKLIGHT_COMPENSATION.getName());
+							String backlightValue = "on".equals(backlightCompensation) ? "1" : "0";
+							addAdvancedControlProperties(advancedControllableProperties, stats,
+									createSwitch(EasyIPMixerConstant.CAMERA_COLOR_GROUP + EasyIPMixerProperty.BACKLIGHT_COMPENSATION.getName(), Integer.parseInt(backlightValue), EasyIPMixerConstant.OFF,
+											EasyIPMixerConstant.ON), backlightValue);
+
+							String wideDynamicRange = cacheKeyAndValue.get(EasyIPMixerConstant.CAMERA_COLOR_GROUP + EasyIPMixerProperty.WIDE_DYNAMIC_RANGE.getName());
+							String wideValue = "on".equals(wideDynamicRange) ? "1" : "0";
+							addAdvancedControlProperties(advancedControllableProperties, stats,
+									createSwitch(EasyIPMixerConstant.CAMERA_COLOR_GROUP + EasyIPMixerProperty.WIDE_DYNAMIC_RANGE.getName(), Integer.parseInt(wideValue), EasyIPMixerConstant.OFF, EasyIPMixerConstant.ON),
+									wideValue);
+
+						} else {
+							retrieveCameraColor(sendCommandDetails(MonitoringCommand.CAMERA_COLOR.getCommand()));
+							String irisValue = cacheKeyAndValue.get(EasyIPMixerConstant.CAMERA_COLOR_GROUP + EasyIPMixerProperty.IRIS.getName());
+							List<String> arrayValues = Arrays.stream(IrisValueEnum.values()).map(IrisValueEnum::getName).collect(Collectors.toList());
+							addAdvancedControlProperties(advancedControllableProperties, stats,
+									createDropdown(EasyIPMixerConstant.CAMERA_COLOR_GROUP + EasyIPMixerProperty.IRIS.getName(), arrayValues.toArray(new String[0]), IrisValueEnum.getNameByValue(irisValue)), irisValue);
+
+							String gainValue = cacheKeyAndValue.get(EasyIPMixerConstant.CAMERA_COLOR_GROUP + EasyIPMixerProperty.GAIN.getName());
+							arrayValues = Arrays.stream(GainValueEnum.values()).map(GainValueEnum::getName).collect(Collectors.toList());
+							addAdvancedControlProperties(advancedControllableProperties, stats,
+									createDropdown(EasyIPMixerConstant.CAMERA_COLOR_GROUP + EasyIPMixerProperty.GAIN.getName(), arrayValues.toArray(new String[0]), GainValueEnum.getNameByValue(gainValue)), gainValue);
+
+							removeValueForTheControllableProperty(EasyIPMixerConstant.CAMERA_COLOR_GROUP + EasyIPMixerProperty.WIDE_DYNAMIC_RANGE.getName(), stats, advancedControllableProperties);
+							removeValueForTheControllableProperty(EasyIPMixerConstant.CAMERA_COLOR_GROUP + EasyIPMixerProperty.BACKLIGHT_COMPENSATION.getName(), stats, advancedControllableProperties);
+						}
+						break;
+					case AUTO_WHITE_BALANCE:
+						status = getStatusSwitch(value);
+						command = propertyItem.getControlCommand().replace("$", status);
+						sendCommandToControlDevice(command, status, propertyKey);
+						updateCachedDeviceData(cacheKeyAndValue, property, status);
+						if ("on".equals(status)) {
+							removeValueForTheControllableProperty(EasyIPMixerConstant.CAMERA_COLOR_GROUP + EasyIPMixerProperty.RED_GAIN.getName(), stats, advancedControllableProperties);
+							removeValueForTheControllableProperty(EasyIPMixerConstant.CAMERA_COLOR_GROUP + EasyIPMixerProperty.BLUE_GAIN.getName(), stats, advancedControllableProperties);
+							stats.remove(EasyIPMixerConstant.CAMERA_COLOR_GROUP + "RedGainCurrentValue");
+							stats.remove(EasyIPMixerConstant.CAMERA_COLOR_GROUP + "BlueGainCurrentValue");
+						} else {
+							retrieveCameraColor(sendCommandDetails(MonitoringCommand.CAMERA_COLOR.getCommand()));
+							String redGainValue = cacheKeyAndValue.get(EasyIPMixerConstant.CAMERA_COLOR_GROUP + EasyIPMixerProperty.RED_GAIN.getName());
+							addAdvancedControlProperties(advancedControllableProperties, stats,
+									createSlider(stats, EasyIPMixerConstant.CAMERA_COLOR_GROUP + EasyIPMixerProperty.RED_GAIN.getName(), "0", "255", 0f, 255f, Float.parseFloat(redGainValue)), redGainValue);
+							stats.put(EasyIPMixerConstant.CAMERA_COLOR_GROUP + "RedGainCurrentValue", redGainValue);
+
+							String blueGainValue = cacheKeyAndValue.get(EasyIPMixerConstant.CAMERA_COLOR_GROUP + EasyIPMixerProperty.BLUE_GAIN.getName());
+							addAdvancedControlProperties(advancedControllableProperties, stats,
+									createSlider(stats, EasyIPMixerConstant.CAMERA_COLOR_GROUP + EasyIPMixerProperty.BLUE_GAIN.getName(), "0", "255", 0f, 255f, Float.parseFloat(blueGainValue)), blueGainValue);
+							stats.put(EasyIPMixerConstant.CAMERA_COLOR_GROUP + "BlueGainCurrentValue", blueGainValue);
+						}
+						break;
+					case BLUE_GAIN:
+					case DETAIL:
+					case RED_GAIN:
+					case CHROMA:
+					case GAMMA:
+						value = convertFloatToIntString(value);
+						command = propertyItem.getControlCommand().replace("$", value);
+						sendCommandToControlDevice(command, value, propertyKey);
+						stats.put(property + EasyIPMixerConstant.CURRENT_VALUE, value);
+						updateCachedDeviceData(cacheKeyAndValue, property, value);
+						break;
+					case IRIS:
+						value = convertFloatToIntString(value);
+						command = propertyItem.getControlCommand().replace("$", value);
+						sendCommandToControlDevice(command, value, propertyKey);
+						stats.put(property + EasyIPMixerConstant.CURRENT_VALUE, IrisValueEnum.getNameByValue(value));
+						updateCachedDeviceData(cacheKeyAndValue, property, value);
+						break;
+					case GAIN:
+						value = convertFloatToIntString(value);
+						command = propertyItem.getControlCommand().replace("$", value);
+						sendCommandToControlDevice(command, value, propertyKey);
+						stats.put(EasyIPMixerConstant.CAMERA_COLOR_GROUP + "GainCurrentValue(dB)", GainValueEnum.getNameByValue(value));
+						updateCachedDeviceData(cacheKeyAndValue, property, value);
+						break;
+					case CAMERA_ZOOM:
+						value = checkValidInput(1, 20, value);
+						command = propertyItem.getControlCommand().replace("$", value);
+						sendCommandToControlDevice(command, value, propertyKey);
+						updateCachedDeviceData(cacheKeyAndValue, property, value);
+						break;
+					case CAMERA_PAN:
+						value = checkValidInput(-150f, 150f, value);
+						command = propertyItem.getControlCommand().replace("$", value);
+						sendCommandToControlDevice(command, value, propertyKey);
+						updateCachedDeviceData(cacheKeyAndValue, property, value);
+						break;
+					case CAMERA_TILT:
+						value = checkValidInput(-30, 90, value);
+						command = propertyItem.getControlCommand().replace("$", value);
+						sendCommandToControlDevice(command, value, propertyKey);
+						updateCachedDeviceData(cacheKeyAndValue, property, value);
+						break;
+					case CAMERA_FOCUS_MODE:
+						status = "1".equals(value) ? "auto" : "manual";
+						command = propertyItem.getControlCommand().replace("$", status);
+						sendCommandToControlDevice(command, status, propertyKey);
+						updateCachedDeviceData(cacheKeyAndValue, property, "1".equals(value) ? "on" : "off");
+						break;
+					case CAMERA_HOME:
+						sendCommandToControlDevice(propertyItem.getControlCommand(), "Home", propertyKey);
+						cacheKeyAndValue.put(EasyIPMixerConstant.CAMERA_SETTINGS_GROUP + MonitoringCommand.PAN.getName(), "0.0");
+						cacheKeyAndValue.put(EasyIPMixerConstant.CAMERA_SETTINGS_GROUP + MonitoringCommand.TILT.getName(), "0.0");
+						cacheKeyAndValue.put(EasyIPMixerConstant.CAMERA_SETTINGS_GROUP + MonitoringCommand.ZOOM.getName(), "1.0");
+						populateCameraPosition(stats, advancedControllableProperties);
+						break;
+					case CAMERA_PRESET:
+						newValue = PresetValueEnum.getValueByName(value);
+						if (newValue != null) {
+							command = propertyItem.getControlCommand().replace("$", newValue);
+							sendCommandToControlDevice(command, value, propertyKey);
+							retrieveCameraPosition();
+							populateCameraPosition(stats, advancedControllableProperties);
+						}
+						retrieveCameraPosition();
+						populateCameraPosition(stats, advancedControllableProperties);
+						break;
+					case CAMERA_CCU_SCENE:
+						newValue = CCUSceneValueEnum.getValueByName(value);
+						if (newValue != null) {
+							command = propertyItem.getControlCommand().replace("$", newValue);
+							sendCommandToControlDevice(command, value, propertyKey);
+						}
+						break;
+					default:
+						logger.debug(String.format("Property name %s doesn't support", propertyKey));
+				}
+			}
+			updateValueForTheControllableProperty(property, value, stats, advancedControllableProperties);
 		} finally {
-			this.timeout = statisticsSSHTimeout;
 			reentrantLock.unlock();
 		}
 	}
@@ -294,7 +563,7 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 	 *
 	 * @throws Exception if there's an error during data retrieval.
 	 */
-	private void retrieveAllData() throws FailedLoginException {
+	private void retrieveAllData() throws Exception {
 		getNumOfPollingInterval();
 		if (currentPollingInterval == 1) {
 			retrieveMonitoring();
@@ -309,7 +578,6 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 		if (currentPollingInterval == 4) {
 			retrieveCrossPointGain(2);
 		}
-		currentPollingInterval = currentPollingInterval < numOfPollingInterval ? currentPollingInterval + 1 : 1;
 	}
 
 	/**
@@ -330,33 +598,48 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 					break;
 				case VERSION:
 					for (VersionInformation version : VersionInformation.values()) {
-						cacheKeyAndValue.put(version.getName(), extractResponseValue(response, version.getValue()));
-					}
-					break;
-				case STREAMING:
-					for (StreamSettings stream : StreamSettings.values()) {
-						cacheKeyAndValue.put(EasyIPMixerConstant.STREAMING_GROUP + stream.getName(), extractResponseValue(response, stream.getValue()));
+						cacheKeyAndValue.put(EasyIPMixerConstant.SYSTEM_INFORMATION_GROUP + version.getName(), extractResponseValue(response, version.getValue()));
 					}
 					break;
 				case CAMERA_COLOR:
-					for (CameraColorSettings colorSettings : CameraColorSettings.values()) {
-						cacheKeyAndValue.put(EasyIPMixerConstant.CAMERA_COLOR_GROUP + colorSettings.getName(), extractResponseValue(response, colorSettings.getCommand()));
-					}
-					break;
-				case FACTORY_RESET:
-					cacheKeyAndValue.put("FactoryResetSoftwareStatus", extractResponseValue(response, "factory-reset (software):(.*?)\r\n"));
-					cacheKeyAndValue.put("FactoryResetHardwareStatus", extractResponseValue(response, "factory-reset (hardware):(.*?)\r\n"));
+					retrieveCameraColor(response);
 					break;
 				case PAN:
 				case TILT:
 				case ZOOM:
+					cacheKeyAndValue.put(EasyIPMixerConstant.CAMERA_SETTINGS_GROUP + command.getName(), replaceDraftInResponse(response, command.getCommand()));
+					break;
 				case FOCUS_MODE:
 				case CAMERA_STANDBY:
 					cacheKeyAndValue.put(EasyIPMixerConstant.CAMERA_SETTINGS_GROUP + command.getName(), extractResponseValue(response, command.getRegex()));
 					break;
+				case VIDEO_PIP:
+				case VIDEO_SOURCE:
+					cacheKeyAndValue.put(EasyIPMixerConstant.VIDEO_OUTPUT + command.getName(), extractResponseValue(response, command.getRegex()));
+					break;
 				default:
 					cacheKeyAndValue.put(command.getName(), extractResponseValue(response, command.getRegex()));
 					break;
+			}
+		}
+	}
+
+	/**
+	 * Retrieves camera color settings from the response and stores them in the cache.
+	 *
+	 * @param response the response containing camera color settings information
+	 */
+	private void retrieveCameraColor(String response) {
+		for (CameraColorSettings colorSettings : CameraColorSettings.values()) {
+			cacheKeyAndValue.put(EasyIPMixerConstant.CAMERA_COLOR_GROUP + colorSettings.getName(), extractResponseValue(response, colorSettings.getCommand()));
+			if (colorSettings.equals(CameraColorSettings.AUTO_IRIS)) {
+				response = response.replace("auto_iris", EasyIPMixerConstant.SPACE);
+			}
+			if (colorSettings.equals(CameraColorSettings.BLUE_GAIN)) {
+				response = response.replace("blue_gain", EasyIPMixerConstant.SPACE);
+			}
+			if (colorSettings.equals(CameraColorSettings.RED_GAIN)) {
+				response = response.replace("red_gain", EasyIPMixerConstant.SPACE);
 			}
 		}
 	}
@@ -373,7 +656,7 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 		for (AudioOutput output : AudioOutput.values()) {
 			command = EasyIpMixerCommand.ROUTE_COMMAND.replace("$", output.getValue());
 			response = sendCommandDetails(command);
-			cacheKeyAndValue.put(EasyIPMixerConstant.CROSSPOINT + output.getPropertyName() + EasyIPMixerConstant.HASH + output.getPropertyName(), response);
+			cacheKeyAndValue.put(EasyIPMixerConstant.CROSSPOINT + output.getPropertyName() + EasyIPMixerConstant.HASH + output.getPropertyName(), replaceDraftInResponse(response, command));
 		}
 	}
 
@@ -386,26 +669,28 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 	private void retrieveAudioVolume() throws FailedLoginException {
 		String command;
 		String response;
-		//Output
 		for (AudioOutput output : AudioOutput.values()) {
 			command = EasyIpMixerCommand.MUTE_MONITOR.replace("$", output.getValue());
 			response = sendCommandDetails(command);
-			cacheKeyAndValue.put(output.getPropertyName() + EasyIPMixerConstant.HASH + EasyIPMixerConstant.MUTE, extractResponseValue(response, "mute:(.*?)\r\n"));
+			cacheKeyAndValue.put(output.getPropertyName() + EasyIPMixerConstant.HASH + EasyIPMixerConstant.MUTE, extractResponseValue(response, EasyIPMixerConstant.MUTE_REGEX));
 
 			command = EasyIpMixerCommand.VOLUME_MONITOR.replace("$", output.getValue());
 			response = sendCommandDetails(command);
-			cacheKeyAndValue.put(output.getPropertyName() + EasyIPMixerConstant.HASH + EasyIPMixerConstant.VOLUME, extractResponseValue(response, "volume:(.*?)\r\n"));
+			cacheKeyAndValue.put(output.getPropertyName() + EasyIPMixerConstant.HASH + EasyIPMixerConstant.VOLUME_DB, removeUnit(extractResponseValue(response, EasyIPMixerConstant.VOLUME_REGEX)));
 		}
 
-		//Input
 		for (AudioInput input : AudioInput.values()) {
+			if (input.equals(AudioInput.AUTO_MIC_MIXER)) {
+				continue;
+			}
 			command = EasyIpMixerCommand.MUTE_MONITOR.replace("$", input.getValue());
 			response = sendCommandDetails(command);
-			cacheKeyAndValue.put(input.getName() + EasyIPMixerConstant.HASH + EasyIPMixerConstant.MUTE, extractResponseValue(response, "mute:(.*?)\r\n"));
+			cacheKeyAndValue.put(input.getPropertyName() + EasyIPMixerConstant.HASH + EasyIPMixerConstant.MUTE, extractResponseValue(response, EasyIPMixerConstant.MUTE_REGEX));
 
 			command = EasyIpMixerCommand.VOLUME_MONITOR.replace("$", input.getValue());
 			response = sendCommandDetails(command);
-			cacheKeyAndValue.put(input.getName() + EasyIPMixerConstant.HASH + EasyIPMixerConstant.VOLUME, extractResponseValue(response, "volume:(.*?)\r\n"));
+			cacheKeyAndValue.put(input.getPropertyName() + EasyIPMixerConstant.HASH + EasyIPMixerConstant.VOLUME_DB, removeUnit(extractResponseValue(response, EasyIPMixerConstant.VOLUME_REGEX)));
+
 		}
 	}
 
@@ -434,9 +719,45 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 			for (AudioInput input : AudioInput.values()) {
 				command = EasyIpMixerCommand.GAIN_MONITOR.replace("$1", valueOutput).replace("$2", input.getValue());
 				response = sendCommandDetails(command);
-				cacheKeyAndValue.put(EasyIPMixerConstant.CROSSPOINT + group + EasyIPMixerConstant.HASH + input.getPropertyName() + EasyIPMixerConstant.GAIN, response);
+				cacheKeyAndValue.put(EasyIPMixerConstant.CROSSPOINT + group + EasyIPMixerConstant.HASH + input.getPropertyName() + EasyIPMixerConstant.GAIN_DB, replaceDraftInResponse(response, command));
 			}
 		}
+	}
+
+	/**
+	 * Retrieves the camera position by sending specific commands for PAN, TILT, and ZOOM.
+	 * Extracts the response values and stores them in the cache.
+	 *
+	 * @throws FailedLoginException If the login to the system fails.
+	 */
+	private void retrieveCameraPosition() throws FailedLoginException {
+		String response = sendCommandDetails(MonitoringCommand.PAN.getCommand());
+		cacheKeyAndValue.put(EasyIPMixerConstant.CAMERA_SETTINGS_GROUP + MonitoringCommand.PAN.getName(), replaceDraftInResponse(response, MonitoringCommand.PAN.getCommand()));
+		response = sendCommandDetails(MonitoringCommand.TILT.getCommand());
+		cacheKeyAndValue.put(EasyIPMixerConstant.CAMERA_SETTINGS_GROUP + MonitoringCommand.TILT.getName(), replaceDraftInResponse(response, MonitoringCommand.TILT.getCommand()));
+		response = sendCommandDetails(MonitoringCommand.ZOOM.getCommand());
+		cacheKeyAndValue.put(EasyIPMixerConstant.CAMERA_SETTINGS_GROUP + MonitoringCommand.ZOOM.getName(), replaceDraftInResponse(response, MonitoringCommand.ZOOM.getCommand()));
+	}
+
+	/**
+	 * Populates camera position statistics and properties based on the retrieved data.
+	 * Adds advanced control properties and updates stats with the current values.
+	 *
+	 * @param stats The statistics to be populated with camera position data.
+	 * @param advancedControllableProperties The list of advanced controllable properties.
+	 */
+	private void populateCameraPosition(Map<String, String> stats, List<AdvancedControllableProperty> advancedControllableProperties) {
+		String propertyName = EasyIPMixerConstant.CAMERA_SETTINGS_GROUP + MonitoringCommand.PAN.getName();
+		String value = getDefaultValueForNullData(cacheKeyAndValue.get(propertyName));
+		addAdvancedControlProperties(advancedControllableProperties, stats, createText(propertyName, value), value);
+
+		propertyName = EasyIPMixerConstant.CAMERA_SETTINGS_GROUP + MonitoringCommand.TILT.getName();
+		value = getDefaultValueForNullData(cacheKeyAndValue.get(propertyName));
+		addAdvancedControlProperties(advancedControllableProperties, stats, createText(propertyName, value), value);
+
+		propertyName = EasyIPMixerConstant.CAMERA_SETTINGS_GROUP + MonitoringCommand.ZOOM.getName();
+		value = getDefaultValueForNullData(cacheKeyAndValue.get(propertyName));
+		addAdvancedControlProperties(advancedControllableProperties, stats, createText(propertyName, value), value);
 	}
 
 	/**
@@ -456,6 +777,7 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 			populateAudioVolume(controlStats, advancedControllableProperties);
 			populateCrossPointGain(controlStats, advancedControllableProperties);
 		}
+		currentPollingInterval = currentPollingInterval < numOfPollingInterval ? currentPollingInterval + 1 : 1;
 	}
 
 	/**
@@ -468,49 +790,70 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 	private void populateMonitoringAndControllingData(Map<String, String> stats, Map<String, String> controlStats, List<AdvancedControllableProperty> advancedControllableProperties) {
 		String value;
 		String propertyName;
+		String status;
 		for (EasyIPMixerProperty property : EasyIPMixerProperty.values()) {
 			propertyName = property.getGroup().concat(property.getName());
 			value = getDefaultValueForNullData(cacheKeyAndValue.get(propertyName));
 			switch (property) {
 				case CAMERA_PAN:
-					addAdvancedControlProperties(advancedControllableProperties, controlStats, createSlider(stats, propertyName, "-150", "150", -150.0f, 150.0f, Float.parseFloat(value)), value);
-					controlStats.put(propertyName + EasyIPMixerConstant.CURRENT_VALUE, value);
-					break;
 				case CAMERA_TILT:
-					addAdvancedControlProperties(advancedControllableProperties, controlStats, createSlider(stats, propertyName, "-30", "90", -30.0f, 90.0f, Float.parseFloat(value)), value);
-					controlStats.put(propertyName + EasyIPMixerConstant.CURRENT_VALUE, value);
-					break;
 				case CAMERA_ZOOM:
-					addAdvancedControlProperties(advancedControllableProperties, controlStats, createSlider(stats, propertyName, "1", "20", -1.0f, 20.0f, Float.parseFloat(value)), value);
-					controlStats.put(propertyName + EasyIPMixerConstant.CURRENT_VALUE, value);
+					if (EasyIPMixerConstant.NONE.equals(value)) {
+						controlStats.put(propertyName, value);
+					} else {
+						addAdvancedControlProperties(advancedControllableProperties, controlStats, createText(propertyName, value), value);
+					}
 					break;
 				case GAIN:
+					if (cacheKeyAndValue.get(EasyIPMixerConstant.CAMERA_COLOR_GROUP.concat("AutoIris")).equals(EasyIPMixerConstant.OFF_VALUE)) {
+						List<String> arrayValues = Arrays.stream(GainValueEnum.values()).map(GainValueEnum::getName).collect(Collectors.toList());
+						addAdvancedControlProperties(advancedControllableProperties, controlStats, createDropdown(propertyName, arrayValues.toArray(new String[0]), GainValueEnum.getNameByValue(value)), value);
+					}
+					break;
 				case IRIS:
+					if (cacheKeyAndValue.get(EasyIPMixerConstant.CAMERA_COLOR_GROUP.concat("AutoIris")).equals(EasyIPMixerConstant.OFF_VALUE)) {
+						List<String> arrayValues = Arrays.stream(IrisValueEnum.values()).map(IrisValueEnum::getName).collect(Collectors.toList());
+						addAdvancedControlProperties(advancedControllableProperties, controlStats, createDropdown(propertyName, arrayValues.toArray(new String[0]), IrisValueEnum.getNameByValue(value)), value);
+					}
+					break;
+				case RED_GAIN:
+				case BLUE_GAIN:
+					if (cacheKeyAndValue.get(EasyIPMixerConstant.CAMERA_COLOR_GROUP.concat("AutoWhiteBalance")).equals(EasyIPMixerConstant.OFF_VALUE)) {
+						CameraColorSettings colorSettings = CameraColorSettings.getByName(property.getName());
+						addAdvancedControlProperties(advancedControllableProperties, controlStats,
+								createSlider(controlStats, propertyName, colorSettings.getMinValue(), colorSettings.getMaxValue(), Float.parseFloat(colorSettings.getMinValue()),
+										Float.parseFloat(colorSettings.getMaxValue()),
+										Float.parseFloat(value)), value);
+						controlStats.put(propertyName + EasyIPMixerConstant.CURRENT_VALUE, value);
+					}
+					break;
 				case GAMMA:
 				case CHROMA:
 				case DETAIL:
-				case RED_GAIN:
-				case BLUE_GAIN:
 					if (EasyIPMixerConstant.NONE.equals(value)) {
 						controlStats.put(propertyName, value);
 					} else {
 						CameraColorSettings colorSettings = CameraColorSettings.getByName(property.getName());
 						addAdvancedControlProperties(advancedControllableProperties, controlStats,
-								createSlider(stats, propertyName, colorSettings.getMinValue(), colorSettings.getMaxValue(), Float.parseFloat(colorSettings.getMinValue()),
+								createSlider(controlStats, propertyName, colorSettings.getMinValue(), colorSettings.getMaxValue(), Float.parseFloat(colorSettings.getMinValue()),
 										Float.parseFloat(colorSettings.getMaxValue()),
 										Float.parseFloat(value)), value);
 						controlStats.put(propertyName + EasyIPMixerConstant.CURRENT_VALUE, value);
 					}
 					break;
 				case CAMERA_FOCUS_MODE:
-					String status = "on".equals(value) ? "1" : "0";
-					addAdvancedControlProperties(advancedControllableProperties, controlStats, createSwitch(propertyName, Integer.parseInt(status), "Manual", "Auto"), status);
+					if (EasyIPMixerConstant.NONE.equals(value)) {
+						controlStats.put(propertyName, value);
+					} else {
+						status = EasyIPMixerConstant.ON_VALUE.equals(value) ? "1" : "0";
+						addAdvancedControlProperties(advancedControllableProperties, controlStats, createSwitch(propertyName, Integer.parseInt(status), "Manual", "Auto"), status);
+					}
 					break;
 				case CAMERA_HOME:
 					addAdvancedControlProperties(advancedControllableProperties, controlStats, createButton(propertyName, "Set", "Setting", 0), EasyIPMixerConstant.NONE);
 					break;
 				case SYSTEM_REBOOT:
-					addAdvancedControlProperties(advancedControllableProperties, controlStats, createButton(propertyName, "Reboot", "Rebooting", 0), EasyIPMixerConstant.NONE);
+					addAdvancedControlProperties(advancedControllableProperties, controlStats, createButton(propertyName, "Reboot Now", "Rebooting", 0), EasyIPMixerConstant.NONE);
 					break;
 				case CAMERA_STANDBY:
 				case VIDEO_MUTE:
@@ -518,14 +861,19 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 				case AUDIO_MUTE:
 				case SYSTEM_STANDBY:
 				case AUTO_IRIS:
-				case WIDE_DYNAMIC_RANGE:
 				case AUTO_WHITE_BALANCE:
-				case BACKLIGHT_COMPENSETION:
 					if (EasyIPMixerConstant.NONE.equals(value)) {
 						controlStats.put(propertyName, value);
 					} else {
-						status = "on".equals(value) ? "1" : "0";
-						addAdvancedControlProperties(advancedControllableProperties, controlStats, createSwitch(propertyName, Integer.parseInt(status), "Off", "On"), status);
+						status = EasyIPMixerConstant.ON_VALUE.equals(value) ? "1" : "0";
+						addAdvancedControlProperties(advancedControllableProperties, controlStats, createSwitch(propertyName, Integer.parseInt(status), EasyIPMixerConstant.OFF, EasyIPMixerConstant.ON), status);
+					}
+					break;
+				case WIDE_DYNAMIC_RANGE:
+				case BACKLIGHT_COMPENSATION:
+					if (cacheKeyAndValue.get(EasyIPMixerConstant.CAMERA_COLOR_GROUP.concat("AutoIris")).equals(EasyIPMixerConstant.ON_VALUE)) {
+						status = EasyIPMixerConstant.ON_VALUE.equals(value) ? "1" : "0";
+						addAdvancedControlProperties(advancedControllableProperties, controlStats, createSwitch(propertyName, Integer.parseInt(status), EasyIPMixerConstant.OFF, EasyIPMixerConstant.ON), status);
 					}
 					break;
 				case CAMERA_PRESET:
@@ -569,11 +917,18 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 		List<String> propertyNameList = Stream.concat(
 				Arrays.stream(AudioInput.values()).map(AudioInput::getPropertyName),
 				Arrays.stream(AudioOutput.values()).map(AudioOutput::getPropertyName)).collect(Collectors.toList());
-
+		propertyNameList.remove(0);
 		for (String propertyName : propertyNameList) {
+			String min = "-42";
+			String max = "6";
+			if (propertyName.equals(AudioInput.HDMI_IN_LEFT.getPropertyName()) || propertyName.equals(AudioInput.HDMI_IN_RIGHT.getPropertyName())
+					|| propertyName.equals(AudioInput.LINE_MIC_1.getPropertyName()) || propertyName.equals(AudioInput.LINE_MIC_2.getPropertyName())
+					|| propertyName.equals(AudioOutput.OUTPUT1.getPropertyName()) || propertyName.equals(AudioOutput.OUTPUT2.getPropertyName())) {
+				min = "-50";
+				max = "20";
+			}
 			mutePropertyName = propertyName + EasyIPMixerConstant.HASH + EasyIPMixerConstant.MUTE;
 			volumePropertyName = propertyName + EasyIPMixerConstant.HASH + EasyIPMixerConstant.VOLUME_DB;
-
 			volumeValue = getDefaultValueForNullData(cacheKeyAndValue.get(volumePropertyName));
 			muteValue = getDefaultValueForNullData(cacheKeyAndValue.get(mutePropertyName));
 
@@ -589,7 +944,8 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 			if (EasyIPMixerConstant.NONE.equals(volumeValue)) {
 				stats.put(volumePropertyName, EasyIPMixerConstant.NONE);
 			} else {
-				addAdvancedControlProperties(advancedControllableProperties, stats, createSlider(stats, volumePropertyName, "-42", "6", -42.0f, 6.0f, Float.parseFloat(volumeValue)), volumeValue);
+				addAdvancedControlProperties(advancedControllableProperties, stats,
+						createSlider(stats, volumePropertyName, min, max, Float.parseFloat(min), Float.parseFloat(max), Float.parseFloat(volumeValue)), volumeValue);
 				stats.put(propertyName + EasyIPMixerConstant.HASH + "VolumeCurrentValue(dB)", volumeValue);
 			}
 		}
@@ -646,6 +1002,24 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 	}
 
 	/**
+	 * Send command to control device by value
+	 *
+	 * @param command the command is command to send to the device
+	 * @param value the value is value of the command
+	 * @param name the name is group name
+	 */
+	private void sendCommandToControlDevice(String command, String value, String name) {
+		try {
+			String response = send(command.contains("\r") ? command : command.concat("\r"));
+			if (StringUtils.isNullOrEmpty(response) || response.contains(EasyIPMixerConstant.ERROR_RESPONSE) || !response.contains(EasyIPMixerConstant.OK)) {
+				throw new IllegalArgumentException(String.format("Error when control %s, Syntax error command: %s", name, response));
+			}
+		} catch (Exception e) {
+			throw new IllegalArgumentException(String.format("Can't control %s with %s value.", name, value), e);
+		}
+	}
+
+	/**
 	 * Send command detail to get the data from device
 	 *
 	 * @param command the command is command to get data
@@ -654,6 +1028,9 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 	private String sendCommandDetails(String command) throws FailedLoginException {
 		try {
 			String response = send(command.contains("\r") ? command : command.concat("\r"));
+			if (response.contains("Syntax error")) {
+				return EasyIPMixerConstant.NONE;
+			}
 			return response.replaceAll(EasyIPMixerConstant.REGEX_RESPONSE, EasyIPMixerConstant.EMPTY);
 		} catch (FailedLoginException e) {
 			throw new FailedLoginException("Login failed: " + e);
@@ -683,6 +1060,34 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 	}
 
 	/**
+	 * Converts a floating-point number string to an integer string.
+	 *
+	 * @param floatString the string representation of a floating-point number
+	 * @return the string representation of the integer value of the input floatString
+	 */
+	public static String convertFloatToIntString(String floatString) {
+		float floatValue = Float.parseFloat(floatString);
+		int intValue = (int) floatValue;
+		return String.valueOf(intValue);
+	}
+
+	/**
+	 * Removes the "(dB)" unit from the given string and trims any leading or trailing whitespace.
+	 *
+	 * @param input The input string from which the "(dB)" unit will be removed.
+	 * @return The modified string after removing the "(dB)" unit and trimming whitespace.
+	 */
+	public String removeUnit(String input) {
+		String result = input.replace("dB", "");
+		return result.trim();
+	}
+
+	private String replaceDraftInResponse(String response, String command) {
+		return response.replace(command, "").replace("OK", "")
+				.replace(">", "").replace("]", "").trim();
+	}
+
+	/**
 	 * Determines the number of polling intervals based on configuration settings.
 	 * If the configuration management is enabled, sets the number of polling intervals to 4 if crosspoint gain is enabled, otherwise sets it to 2.
 	 */
@@ -691,6 +1096,34 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 		if (isConfigManagement) {
 			numOfPollingInterval = isEnableCrosspointGain ? 4 : 2;
 		}
+	}
+
+	/**
+	 * Checks if the provided group exists in the list of audio input and output property names.
+	 *
+	 * @param group The group name to check.
+	 * @return true if the group exists in the list
+	 */
+	private boolean checkAudioVolumeControl(String group) {
+		List<String> propertyNameList = Stream.concat(
+				Arrays.stream(AudioInput.values()).map(AudioInput::getPropertyName),
+				Arrays.stream(AudioOutput.values()).map(AudioOutput::getPropertyName)).collect(Collectors.toList());
+		for (String item : propertyNameList) {
+			if (group.equals(item)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * check value is null or empty
+	 *
+	 * @param value input value
+	 * @return value after checking
+	 */
+	private String getDefaultValueForNullData(String value) {
+		return StringUtils.isNotNullOrEmpty(value) ? value : EasyIPMixerConstant.NONE;
 	}
 
 	/**
@@ -708,16 +1141,6 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 	}
 
 	/**
-	 * check value is null or empty
-	 *
-	 * @param value input value
-	 * @return value after checking
-	 */
-	private String getDefaultValueForNullData(String value) {
-		return StringUtils.isNotNullOrEmpty(value) ? value : EasyIPMixerConstant.NONE;
-	}
-
-	/**
 	 * capitalize the first character of the string
 	 *
 	 * @param input input string
@@ -726,6 +1149,43 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 	private String uppercaseFirstCharacter(String input) {
 		char firstChar = input.charAt(0);
 		return Character.toUpperCase(firstChar) + input.substring(1);
+	}
+
+	/**
+	 * Converts a status switch value to its corresponding ON or OFF value.
+	 *
+	 * @param value the status switch value to be converted
+	 * @return the corresponding ON or OFF value based on the input status switch value
+	 */
+	private String getStatusSwitch(String value) {
+		return EasyIPMixerConstant.NUMBER_ONE.equals(value) ? EasyIPMixerConstant.ON_VALUE : EasyIPMixerConstant.OFF_VALUE;
+	}
+
+	/**
+	 * Checks if the input value is valid and converts it to an integer.
+	 *
+	 * @param value The input value to be checked and converted to an integer.
+	 * @param min is the minimum value
+	 * @param max is the maximum value
+	 * @return The converted integer value if the input is valid.
+	 * @throws IllegalArgumentException if the input value is not a valid integer.
+	 */
+	private String checkValidInput(double min, double max, String value) {
+		double initial = min;
+		try {
+			double valueCompare = Double.parseDouble(value);
+			if (min <= valueCompare && valueCompare <= max) {
+				return String.valueOf(valueCompare);
+			}
+			if (valueCompare > max) {
+				initial = max;
+			}
+		} catch (Exception e) {
+			if (!value.contains(EasyIPMixerConstant.DASH)) {
+				initial = max;
+			}
+		}
+		return String.valueOf(initial);
 	}
 
 	/**
@@ -752,6 +1212,17 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 			}
 			advancedControllableProperties.add(property);
 		}
+	}
+
+	/**
+	 * Update cache device data
+	 *
+	 * @param cacheMapOfPropertyNameAndValue the cacheMapOfPropertyNameAndValue are map key and value of it
+	 * @param property the key is property name
+	 * @param value the value is String value
+	 */
+	private void updateCachedDeviceData(Map<String, String> cacheMapOfPropertyNameAndValue, String property, String value) {
+		cacheMapOfPropertyNameAndValue.put(property, value);
 	}
 
 	/**
@@ -824,5 +1295,57 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 		slider.setRangeEnd(rangeEnd);
 
 		return new AdvancedControllableProperty(name, new Date(), slider, initialValue);
+	}
+
+	/**
+	 * Create text is control property for metric
+	 *
+	 * @param name the name of the property
+	 * @param stringValue character string
+	 * @return AdvancedControllableProperty Text instance
+	 */
+	private AdvancedControllableProperty createText(String name, String stringValue) {
+		AdvancedControllableProperty.Text text = new AdvancedControllableProperty.Text();
+		return new AdvancedControllableProperty(name, new Date(), text, stringValue);
+	}
+
+	/**
+	 * Update the value for the control metric
+	 *
+	 * @param property is name of the metric
+	 * @param value the value is value of properties
+	 * @param extendedStatistics list statistics property
+	 * @param advancedControllableProperties the advancedControllableProperties is list AdvancedControllableProperties
+	 */
+	private void updateValueForTheControllableProperty(String property, String value, Map<String, String> extendedStatistics, List<AdvancedControllableProperty> advancedControllableProperties) {
+		if (!advancedControllableProperties.isEmpty()) {
+			for (AdvancedControllableProperty advancedControllableProperty : advancedControllableProperties) {
+				if (advancedControllableProperty.getName().equals(property)) {
+					extendedStatistics.remove(property);
+					extendedStatistics.put(property, value);
+					advancedControllableProperty.setValue(value);
+					break;
+				}
+			}
+		}
+	}
+
+	/**
+	 * Remove the value for the control metric
+	 *
+	 * @param property is name of the metric
+	 * @param extendedStatistics list statistics property
+	 * @param advancedControllableProperties the advancedControllableProperties is list AdvancedControllableProperties
+	 */
+	private void removeValueForTheControllableProperty(String property, Map<String, String> extendedStatistics, List<AdvancedControllableProperty> advancedControllableProperties) {
+		if (!advancedControllableProperties.isEmpty()) {
+			for (AdvancedControllableProperty advancedControllableProperty : advancedControllableProperties) {
+				if (advancedControllableProperty.getName().equals(property)) {
+					extendedStatistics.remove(property);
+					advancedControllableProperties.remove(advancedControllableProperty);
+					break;
+				}
+			}
+		}
 	}
 }

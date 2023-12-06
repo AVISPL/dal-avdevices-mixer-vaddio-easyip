@@ -6,6 +6,8 @@ package com.avispl.symphony.dal.avdevices.mixer.vaddio.easyip.common.audio;
 
 import java.util.Arrays;
 
+import com.avispl.symphony.dal.avdevices.mixer.vaddio.easyip.common.EasyIPMixerConstant;
+
 /**
  * AudioOutput class defined the enum contains all command of audio crosspoint matrix
  *
@@ -18,7 +20,7 @@ public enum AudioOutput {
 	OUTPUT1("Output1", "line_out_1"),
 	OUTPUT2("Output2", "line_out_2"),
 	USB_RECORD_LEFT("USBRecordLeft", "usb3_record_left"),
-	USB_RECORD_RIGHT("USBRecordRight", "usb3_record_left"),
+	USB_RECORD_RIGHT("USBRecordRight", "usb3_record_right"),
 	HDMI_OUT_LEFT("HDMIOutLeft", "hdmi_out_left"),
 	HDMI_OUT_RIGHT("HDMIOutRight", "hdmi_out_right"),
 	DANTE_OUT_1("DanteOut1", "dante_out_1"),
@@ -59,12 +61,18 @@ public enum AudioOutput {
 		return value;
 	}
 
+	/**
+	 * Retrieves the value associated with the given property name from the AudioOutput enum.
+	 *
+	 * @param name the name of the property to search for in the AudioOutput enum
+	 * @return the value associated with the given property name if found, or EasyIPMixerConstant.NONE if not found
+	 */
 	public static String getValueByName(String name) {
 		AudioOutput matchedEnum = Arrays.stream(AudioOutput.values())
 				.filter(definition -> definition.getPropertyName().equals(name))
 				.findFirst()
 				.orElse(null);
 
-		return matchedEnum != null ? matchedEnum.getValue() : null;
+		return matchedEnum != null ? matchedEnum.getValue() : EasyIPMixerConstant.NONE;
 	}
 }
