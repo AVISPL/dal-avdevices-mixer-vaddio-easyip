@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2023 AVI-SPL, Inc. All Rights Reserved.
  */
+
 package com.avispl.symphony.dal.avdevices.mixer.vaddio.easyip.common;
 
 /**
@@ -14,11 +15,16 @@ public class EasyIPMixerConstant {
 	public static final String TRUE = "True";
 	public static final String EMPTY = "";
 	public static final String NONE = "None";
+	public static final String REBOOT = "Reboot";
+	public static final String REBOOT_NOW = "Reboot Now";
+	public static final String REBOOTING = "Rebooting";
+	public static final String HOME = "Home";
+	public static final String SET = "Set";
+	public static final String SETTING = "Setting";
 	public static final String REGEX_RESPONSE = "\u001B|\\[|0;37m|0m";
-	public static final String CAMERA_SETTINGS_GROUP = "VideoInputEasyIP1#";
 	public static final String NETWORK_GROUP = "NetworkSettings#";
-	public static final String VIDEO_OUTPUT = "VideoOutput#";
-	public static final String CAMERA_COLOR_GROUP = "VideoInputEasyIP1#";
+	public static final String VIDEO_OUTPUT_GROUP = "VideoOutput#";
+	public static final String VIDEO_INPUT = "VideoInput";
 	public static final String SYSTEM_INFORMATION_GROUP = "SystemInformation#";
 	public static final String CROSSPOINT = "Crosspoint";
 	public static final String MUTE = "Mute";
@@ -41,6 +47,10 @@ public class EasyIPMixerConstant {
 	public static final String OFF = "Off";
 	public static final String ON_VALUE = "on";
 	public static final String OFF_VALUE = "off";
+	public static final String MANUAL = "Manual";
+	public static final String AUTO = "Auto";
 	public static final String MUTE_REGEX = "mute:(.*?)\r\n";
 	public static final String VOLUME_REGEX = "volume:(.*?)\r\n";
+	public static final String PRESET_MESSAGE = "Please select a preset";
+	public static final String CCU_SCENE_MESSAGE = "Please select a CCU Scene";
 }

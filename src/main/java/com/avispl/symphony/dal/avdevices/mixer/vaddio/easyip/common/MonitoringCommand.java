@@ -1,7 +1,11 @@
+/*
+ * Copyright (c) 2023 AVI-SPL, Inc. All Rights Reserved.
+ */
+
 package com.avispl.symphony.dal.avdevices.mixer.vaddio.easyip.common;
 
 /**
- * MonitoringCommand
+ * Enumeration representing monitoring command properties for EasyIP Mixer camera control.
  *
  * @author Harry / Symphony Dev Team<br>
  * Created on 11/22/2023
@@ -16,12 +20,12 @@ public enum MonitoringCommand {
 	NETWORK("Network", "network settings get", ""),
 	SYSTEM_STANDBY("SystemStandby", "system standby get", "standby:(.*?)\r\n"),
 	VERSION("Version", "version", ""),
-	CAMERA_COLOR("CameraColor", "camera 2 ccu get all", ""),
-	PAN("Pan", "camera 2 pan get", ""),
-	TILT("Tilt", "camera 2 tilt get", ""),
-	ZOOM("Zoom", "camera 2 zoom get", ""),
-	FOCUS_MODE("FocusMode", "camera 2 focus mode get", "auto_focus:(.*?)\r\n"),
-	CAMERA_STANDBY("Standby", "camera 2 standby get", "standby:(.*?)\r\n"),
+	CAMERA_COLOR("CameraColor", "camera $ ccu get all", ""),
+	PAN("Pan", "camera $ pan get", ""),
+	TILT("Tilt", "camera $ tilt get", ""),
+	ZOOM("Zoom", "camera $ zoom get", ""),
+	FOCUS_MODE("FocusMode", "camera $ focus mode get", "auto_focus:(.*?)\r\n"),
+	CAMERA_STANDBY("Standby", "camera $ standby get", "standby:(.*?)\r\n"),
 	;
 
 	/**

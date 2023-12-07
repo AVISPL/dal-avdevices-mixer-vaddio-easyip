@@ -1,7 +1,11 @@
+/*
+ * Copyright (c) 2023 AVI-SPL, Inc. All Rights Reserved.
+ */
+
 package com.avispl.symphony.dal.avdevices.mixer.vaddio.easyip.common;
 
 /**
- * VersionInformation
+ *  VersionInformation class provides all regex and name of system information
  *
  * @author Harry / Symphony Dev Team<br>
  * Created on 11/21/2023
@@ -22,7 +26,7 @@ public enum VersionInformation {
 	 * Constructor Instance
 	 *
 	 * @param name of {@link #name}
-	 * @command value of {@link #value}
+	 * @param  value of {@link #value}
 	 */
 	VersionInformation(String name, String value) {
 		this.name = name;

@@ -1,10 +1,14 @@
+/*
+ * Copyright (c) 2023 AVI-SPL, Inc. All Rights Reserved.
+ */
+
 package com.avispl.symphony.dal.avdevices.mixer.vaddio.easyip.common.camera;
 
 import java.util.Arrays;
 import java.util.Optional;
 
 /**
- * CameraColorSettings
+ * CameraColorSettings enum
  *
  * @author Harry / Symphony Dev Team<br>
  * Created on 11/23/2023
@@ -15,8 +19,8 @@ public enum CameraColorSettings {
 	AUTO_WHITE_BALANCE("AutoWhiteBalance", "auto_white_balance(.*?)\r\n", "", ""),
 	BACKLIGHT_COMPENSATION("BacklightCompensation", "backlight_compensation(.*?)\r\n", "", ""),
 	BLUE_GAIN("BlueGain", "blue_gain(.*?)\r\n", "0", "255"),
-	CHROMA("Chroma", "chroma(.*?)\r\n", "0", "14"),
-	DETAIL("Detail", "detail(.*?)\r\n", "0", "15"),
+	CHROMA("Chroma(Saturation)", "chroma(.*?)\r\n", "0", "14"),
+	DETAIL("Detail(Sharpness)", "detail(.*?)\r\n", "0", "15"),
 	GAIN("Gain(dB)", "gain(.*?)\r\n", "1", "12"),
 	GAMMA("Gamma", "gamma(.*?)\r\n", "-64", "64"),
 	IRIS("Iris", "iris(.*?)\r\n", "0", "21"),
@@ -28,7 +32,9 @@ public enum CameraColorSettings {
 	 * Constructor Instance
 	 *
 	 * @param name of {@link #name}
-	 * @command value of {@link #command}
+	 * @param command of {@link #command}
+	 * @param minValue  value of {@link #minValue}
+	 * @param maxValue  value of {@link #maxValue}
 	 */
 	CameraColorSettings(String name, String command, String minValue, String maxValue) {
 		this.name = name;

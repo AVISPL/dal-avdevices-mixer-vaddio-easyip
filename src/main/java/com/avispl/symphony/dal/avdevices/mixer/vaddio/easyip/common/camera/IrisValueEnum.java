@@ -1,11 +1,17 @@
+/*
+ * Copyright (c) 2023 AVI-SPL, Inc. All Rights Reserved.
+ */
+
 package com.avispl.symphony.dal.avdevices.mixer.vaddio.easyip.common.camera;
 
 import java.util.Arrays;
 
+import com.avispl.symphony.dal.avdevices.mixer.vaddio.easyip.common.EasyIPMixerConstant;
+
 /**
- * IrisValueEnum
+ * Enum representing different Iris values and their corresponding descriptions.
  *
- * @author Kevin / Symphony Dev Team<br>
+ * @author Harry / Symphony Dev Team<br>
  * Created on 12/5/2023
  * @since 1.0.0
  */
@@ -32,15 +38,15 @@ public enum IrisValueEnum {
 	PRESET_19("f/2.4", "19"),
 	PRESET_20("f/2.0", "20"),
 	PRESET_21("f/2.0", "21"),
-	;
+			;
 	private final String name;
 	private final String value;
 
 	/**
-	 * Creates a new BatteryStatusEnum with the specified name and value.
+	 * Constructor Instance
 	 *
-	 * @param name The name of the battery status.
-	 * @param value The corresponding value of the battery status.
+	 * @param name of {@link #name}
+	 * @param value of {@link #value}
 	 */
 	IrisValueEnum(String name, String value) {
 		this.name = name;
@@ -63,6 +69,21 @@ public enum IrisValueEnum {
 	 */
 	public String getValue() {
 		return value;
+	}
+
+	/**
+	 * Retrieves the value associated with the given name from the IrisValueEnum.
+	 *
+	 * @param name the name of the property to search for in the IrisValueEnum
+	 * @return the value associated with the given name if found, or EasyIPMixerConstant.NONE if not found
+	 */
+	public static String getValueByName(String name) {
+		IrisValueEnum matchedEnum = Arrays.stream(IrisValueEnum.values())
+				.filter(definition -> definition.getName().equals(name))
+				.findFirst()
+				.orElse(null);
+
+		return matchedEnum != null ? matchedEnum.getValue() : EasyIPMixerConstant.NONE;
 	}
 
 	/**

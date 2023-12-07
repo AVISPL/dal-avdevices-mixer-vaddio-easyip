@@ -1,9 +1,13 @@
+/*
+ * Copyright (c) 2023 AVI-SPL, Inc. All Rights Reserved.
+ */
+
 package com.avispl.symphony.dal.avdevices.mixer.vaddio.easyip.common.video;
 
 import java.util.Arrays;
 
 /**
- * SourceValueEnum
+ * Enum representing different source values and their corresponding descriptions.
  *
  * @author Harry / Symphony Dev Team<br>
  * Created on 11/28/2023
@@ -21,7 +25,10 @@ public enum SourceValueEnum {
 	private final String value;
 
 	/**
+	 * Constructor Instance
 	 *
+	 * @param name of {@link #name}
+	 * @param value of {@link #value}
 	 */
 	SourceValueEnum(String name, String value) {
 		this.name = name;

@@ -1,27 +1,30 @@
+/*
+ * Copyright (c) 2023 AVI-SPL, Inc. All Rights Reserved.
+ */
+
 package com.avispl.symphony.dal.avdevices.mixer.vaddio.easyip.common;
 
 import java.util.Arrays;
 import java.util.Optional;
 
 /**
- * MonitoringProperty
+ * Enumeration representing various properties for EasyIP Mixer control.
  *
  * @author Harry / Symphony Dev Team<br>
  * Created on 11/22/2023
  * @since 1.0.0
  */
 public enum EasyIPMixerProperty {
-	CAMERA_PAN("Pan", EasyIPMixerConstant.CAMERA_SETTINGS_GROUP,"camera 2 pan set $"),
-	CAMERA_TILT("Tilt", EasyIPMixerConstant.CAMERA_SETTINGS_GROUP,"camera 2 tilt set $"),
-	CAMERA_ZOOM("Zoom", EasyIPMixerConstant.CAMERA_SETTINGS_GROUP,"camera 2 zoom set $"),
-	CAMERA_FOCUS_MODE("FocusMode", EasyIPMixerConstant.CAMERA_SETTINGS_GROUP,"camera 2 focus mode $"),
-	CAMERA_STANDBY("Standby", EasyIPMixerConstant.CAMERA_SETTINGS_GROUP,"camera 2 standby $"),
-	CAMERA_HOME("Home", EasyIPMixerConstant.CAMERA_SETTINGS_GROUP,"camera 2 home"),
-	CAMERA_CCU_SCENE("CCUScene", EasyIPMixerConstant.CAMERA_SETTINGS_GROUP,"camera 2 ccu scene recall $"),
-	CAMERA_PRESET("Preset", EasyIPMixerConstant.CAMERA_SETTINGS_GROUP,"camera 2 preset recall $"),
+	CAMERA_PAN("Pan", EasyIPMixerConstant.VIDEO_INPUT,"camera $1 pan set $2"),
+	CAMERA_TILT("Tilt", EasyIPMixerConstant.VIDEO_INPUT,"camera $1 tilt set $2"),
+	CAMERA_ZOOM("Zoom", EasyIPMixerConstant.VIDEO_INPUT,"camera $1 zoom set $2"),
+	CAMERA_FOCUS_MODE("FocusMode", EasyIPMixerConstant.VIDEO_INPUT,"camera $1 focus mode $2"),
+	CAMERA_STANDBY("Standby", EasyIPMixerConstant.VIDEO_INPUT,"camera $1 standby $2"),
+	CAMERA_HOME("Home", EasyIPMixerConstant.VIDEO_INPUT,"camera $1 home"),
+	CAMERA_PRESET("Preset", EasyIPMixerConstant.VIDEO_INPUT,"camera $1 preset recall $2"),
 	VIDEO_MUTE("VideoMute", "","video mute $"),
-	VIDEO_PIP("VideoPIP", EasyIPMixerConstant.VIDEO_OUTPUT ,"video pip $"),
-	VIDEO_SOURCE("VideoSource", EasyIPMixerConstant.VIDEO_OUTPUT ,"video source set $"),
+	VIDEO_PIP("VideoPIP", EasyIPMixerConstant.VIDEO_OUTPUT_GROUP,"video pip $"),
+	VIDEO_SOURCE("VideoSource", EasyIPMixerConstant.VIDEO_OUTPUT_GROUP,"video source set $"),
 	AUDIO_MUTE("AudioMute", "","audio master mute $"),
 	SYSTEM_STANDBY("SystemStandby", "","system standby $"),
 	SYSTEM_REBOOT("SystemReboot", "","system reboot"),
@@ -40,17 +43,17 @@ public enum EasyIPMixerProperty {
 	SUBNET_MASK("SubnetMask", EasyIPMixerConstant.NETWORK_GROUP,""),
 	GATEWAY("Gateway", EasyIPMixerConstant.NETWORK_GROUP,""),
 	HOSTNAME("Hostname", EasyIPMixerConstant.NETWORK_GROUP,""),
-	AUTO_IRIS("AutoIris", EasyIPMixerConstant.CAMERA_COLOR_GROUP,"camera 2 ccu set auto_iris $"),
-	AUTO_WHITE_BALANCE("AutoWhiteBalance", EasyIPMixerConstant.CAMERA_COLOR_GROUP,"camera 2 ccu set auto_white_balance $"),
-	BACKLIGHT_COMPENSATION("BacklightCompensation", EasyIPMixerConstant.CAMERA_COLOR_GROUP,"camera 2 ccu set backlight_compensation $"),
-	BLUE_GAIN("BlueGain", EasyIPMixerConstant.CAMERA_COLOR_GROUP,"camera 2 ccu set blue_gain $"),
-	CHROMA("Chroma", EasyIPMixerConstant.CAMERA_COLOR_GROUP,"camera 2 ccu set chroma $"),
-	DETAIL("Detail", EasyIPMixerConstant.CAMERA_COLOR_GROUP,"camera 2 ccu set detail $"),
-	GAIN("Gain(dB)", EasyIPMixerConstant.CAMERA_COLOR_GROUP,"camera 2 ccu set gain $"),
-	GAMMA("Gamma", EasyIPMixerConstant.CAMERA_COLOR_GROUP,"camera 2 ccu set gamma $"),
-	IRIS("Iris", EasyIPMixerConstant.CAMERA_COLOR_GROUP,"camera 2 ccu set iris $"),
-	RED_GAIN("RedGain", EasyIPMixerConstant.CAMERA_COLOR_GROUP,"camera 2 ccu set red_gain $"),
-	WIDE_DYNAMIC_RANGE("WideDynamicRange", EasyIPMixerConstant.CAMERA_COLOR_GROUP,"camera 2 ccu set wide_dynamic_range $"),
+	AUTO_IRIS("AutoIris", EasyIPMixerConstant.VIDEO_INPUT,"camera $1 ccu set auto_iris $2"),
+	AUTO_WHITE_BALANCE("AutoWhiteBalance", EasyIPMixerConstant.VIDEO_INPUT,"camera $1 ccu set auto_white_balance $2"),
+	BACKLIGHT_COMPENSATION("BacklightCompensation", EasyIPMixerConstant.VIDEO_INPUT,"camera $1 ccu set backlight_compensation $2"),
+	BLUE_GAIN("BlueGain", EasyIPMixerConstant.VIDEO_INPUT,"camera $1 ccu set blue_gain $2"),
+	CHROMA("Chroma(Saturation)", EasyIPMixerConstant.VIDEO_INPUT,"camera $1 ccu set chroma $2"),
+	DETAIL("Detail(Sharpness)", EasyIPMixerConstant.VIDEO_INPUT,"camera $1 ccu set detail $2"),
+	GAIN("Gain(dB)", EasyIPMixerConstant.VIDEO_INPUT,"camera $1 ccu set gain $2"),
+	GAMMA("Gamma", EasyIPMixerConstant.VIDEO_INPUT,"camera $1 ccu set gamma $2"),
+	IRIS("Iris", EasyIPMixerConstant.VIDEO_INPUT,"camera $1 ccu set iris $2"),
+	RED_GAIN("RedGain", EasyIPMixerConstant.VIDEO_INPUT,"camera $1 ccu set red_gain $2"),
+	WIDE_DYNAMIC_RANGE("WideDynamicRange", EasyIPMixerConstant.VIDEO_INPUT,"camera $1 ccu set wide_dynamic_range $2"),
 	;
 
 	/**
