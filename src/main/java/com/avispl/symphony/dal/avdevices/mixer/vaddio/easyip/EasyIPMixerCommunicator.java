@@ -605,6 +605,7 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 	private void getNumberCamera() throws FailedLoginException {
 		String command;
 		String response;
+		numberOfCamera.clear();
 		for (int i = 2; i <= 5; i++) {
 			command = EasyIpMixerCommand.HOST_CAMERA.replace("$", String.valueOf(i));
 			response = extractResponseValue(sendCommandDetails(command), "host:(.*?)\r\n");

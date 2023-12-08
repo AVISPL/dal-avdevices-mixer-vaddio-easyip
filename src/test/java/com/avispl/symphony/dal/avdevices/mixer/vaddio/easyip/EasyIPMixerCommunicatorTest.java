@@ -28,10 +28,10 @@ public class EasyIPMixerCommunicatorTest {
 	public void setUp() throws Exception {
 		easyIPMixerCommunicator = new EasyIPMixerCommunicator();
 
-		easyIPMixerCommunicator.setHost("172.31.254.49");
+		easyIPMixerCommunicator.setHost("");
 		easyIPMixerCommunicator.setPort(22);
-		easyIPMixerCommunicator.setLogin("admin");
-		easyIPMixerCommunicator.setPassword("password1");
+		easyIPMixerCommunicator.setLogin("");
+		easyIPMixerCommunicator.setPassword("");
 		easyIPMixerCommunicator.init();
 		easyIPMixerCommunicator.connect();
 		easyIPMixerCommunicator.setConfigManagement("true");
