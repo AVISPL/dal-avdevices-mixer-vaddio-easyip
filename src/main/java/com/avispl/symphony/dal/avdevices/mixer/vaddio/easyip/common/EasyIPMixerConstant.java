@@ -52,5 +52,9 @@ public class EasyIPMixerConstant {
 	public static final String MUTE_REGEX = "mute:(.*?)\r\n";
 	public static final String VOLUME_REGEX = "volume:(.*?)\r\n";
 	public static final String PRESET_MESSAGE = "Please select a preset";
-	public static final String CCU_SCENE_MESSAGE = "Please select a CCU Scene";
+	public static final String GAIN_CURRENT_VALUE = "GainCurrentValue(dB)";
+	public static final String VOLUME_CURRENT_VALUE = "VolumeCurrentValue(dB)";
+	public static final String IRIS_CURRENT_VALUE = "IrisCurrentValue";
+	public static final String RED_GAIN_CURRENT_VALUE = "RedGainCurrentValue";
+	public static final String BLUE_GAIN_CURRENT_VALUE = "BlueGainCurrentValue";
 }

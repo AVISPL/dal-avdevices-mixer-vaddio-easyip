@@ -122,7 +122,7 @@ public class EasyIPMixerCommunicatorTest {
 		Map<String, String> statistics = extendedStatistic.getStatistics();
 
 		String property = "VideoInputEasyIP2#AutoIris";
-		String value = "0";
+		String value = "1";
 		ControllableProperty controllableProperty = new ControllableProperty();
 		controllableProperty.setProperty(property);
 		controllableProperty.setValue(value);

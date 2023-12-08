@@ -92,7 +92,7 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 	/**
 	 * Current polling interval
 	 */
-	private int currentPollingInterval;
+	private int currentPollingInterval = 1;
 
 	/**
 	 * configManagement imported from the user interface
@@ -161,7 +161,7 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 	public EasyIPMixerCommunicator() {
 		this.setCommandErrorList(Collections.singletonList("Syntax error: Unknown or incomplete command"));
 		this.setCommandSuccessList(Collections.singletonList("> "));
-		this.setLoginSuccessList(Collections.singletonList("********************************************\r\n        \r\nWelcome admin\r\n> "));
+		this.setLoginSuccessList(Collections.singletonList("> "));
 		this.setLoginErrorList(Collections.singletonList("Permission denied, please try again."));
 	}
 
@@ -233,7 +233,7 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 					inputPropertyName = propertyKey.replace(EasyIPMixerConstant.GAIN_DB, EasyIPMixerConstant.EMPTY);
 					command = EasyIpMixerCommand.GAIN_CONTROL.replace("$1", AudioOutput.getValueByName(outputPropertyName)).replace("$2", AudioInput.getValueByName(inputPropertyName)).replace("$3", value);
 					sendCommandToControlDevice(command, value, propertyKey);
-					stats.put(group + EasyIPMixerConstant.HASH + inputPropertyName + "GainCurrentValue(dB)", convertFloatToIntString(value));
+					stats.put(group + EasyIPMixerConstant.HASH + inputPropertyName + EasyIPMixerConstant.GAIN_CURRENT_VALUE, convertFloatToIntString(value));
 					updateCachedDeviceData(cacheKeyAndValue, property, value);
 				}
 
@@ -262,7 +262,7 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 						if (!EasyIPMixerConstant.NONE.equals(audioValue)) {
 							command = EasyIpMixerCommand.VOLUME_CONTROL.replace("$1", audioValue).replace("$2", value);
 							sendCommandToControlDevice(command, value, EasyIPMixerConstant.VOLUME_DB);
-							stats.put(group + EasyIPMixerConstant.HASH + "VolumeCurrentValue(dB)", convertFloatToIntString(value));
+							stats.put(group + EasyIPMixerConstant.HASH + EasyIPMixerConstant.VOLUME_CURRENT_VALUE, convertFloatToIntString(value));
 							updateCachedDeviceData(cacheKeyAndValue, property, value);
 						}
 						break;
@@ -282,12 +282,11 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 				switch (propertyItem) {
 					case SYSTEM_REBOOT:
 						sendCommandToControlDevice(propertyItem.getControlCommand(), EasyIPMixerConstant.REBOOT, propertyKey);
+						Thread.sleep(3000);
 						break;
 					case AUDIO_MUTE:
-						String status;
-						String command;
-						status = getStatusSwitch(value);
-						command = propertyItem.getControlCommand().replace("$", status);
+						String status = getStatusSwitch(value);
+						String command = propertyItem.getControlCommand().replace("$", status);
 						sendCommandToControlDevice(command, status, propertyKey);
 						updateCachedDeviceData(cacheKeyAndValue, property, status);
 						retrieveAudioVolume();
@@ -349,8 +348,8 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 						if (EasyIPMixerConstant.ON_VALUE.equals(status)) {
 							removeValueForTheControllableProperty(group + EasyIPMixerConstant.HASH + EasyIPMixerProperty.IRIS.getName(), stats, advancedControllableProperties);
 							removeValueForTheControllableProperty(group + EasyIPMixerConstant.HASH + EasyIPMixerProperty.GAIN.getName(), stats, advancedControllableProperties);
-							stats.remove(group + EasyIPMixerConstant.HASH + "IrisCurrentValue");
-							stats.remove(group + EasyIPMixerConstant.HASH + "GainCurrentValue(dB)");
+							stats.remove(group + EasyIPMixerConstant.HASH + EasyIPMixerConstant.IRIS_CURRENT_VALUE);
+							stats.remove(group + EasyIPMixerConstant.HASH + EasyIPMixerConstant.GAIN_CURRENT_VALUE);
 
 							String backlightCompensation = cacheKeyAndValue.get(group + EasyIPMixerConstant.HASH + EasyIPMixerProperty.BACKLIGHT_COMPENSATION.getName());
 							String backlightValue = EasyIPMixerConstant.ON_VALUE.equals(backlightCompensation) ? "1" : "0";
@@ -389,19 +388,19 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 						if (EasyIPMixerConstant.ON_VALUE.equals(status)) {
 							removeValueForTheControllableProperty(group + EasyIPMixerConstant.HASH + EasyIPMixerProperty.RED_GAIN.getName(), stats, advancedControllableProperties);
 							removeValueForTheControllableProperty(group + EasyIPMixerConstant.HASH + EasyIPMixerProperty.BLUE_GAIN.getName(), stats, advancedControllableProperties);
-							stats.remove(group + EasyIPMixerConstant.HASH + "RedGainCurrentValue");
-							stats.remove(group + EasyIPMixerConstant.HASH + "BlueGainCurrentValue");
+							stats.remove(group + EasyIPMixerConstant.HASH + EasyIPMixerConstant.RED_GAIN_CURRENT_VALUE);
+							stats.remove(group + EasyIPMixerConstant.HASH + EasyIPMixerConstant.BLUE_GAIN_CURRENT_VALUE);
 						} else {
 							retrieveCameraColor(sendCommandDetails(MonitoringCommand.CAMERA_COLOR.getCommand().replace("$", indexCamera)), indexCamera);
 							String redGainValue = cacheKeyAndValue.get(group + EasyIPMixerConstant.HASH + EasyIPMixerProperty.RED_GAIN.getName());
 							addAdvancedControlProperties(advancedControllableProperties, stats,
 									createSlider(stats, group + EasyIPMixerConstant.HASH + EasyIPMixerProperty.RED_GAIN.getName(), "0", "255", 0f, 255f, Float.parseFloat(redGainValue)), redGainValue);
-							stats.put(group + EasyIPMixerConstant.HASH + "RedGainCurrentValue", redGainValue);
+							stats.put(group + EasyIPMixerConstant.HASH + EasyIPMixerConstant.RED_GAIN_CURRENT_VALUE, redGainValue);
 
 							String blueGainValue = cacheKeyAndValue.get(group + EasyIPMixerConstant.HASH + EasyIPMixerProperty.BLUE_GAIN.getName());
 							addAdvancedControlProperties(advancedControllableProperties, stats,
 									createSlider(stats, group + EasyIPMixerConstant.HASH + EasyIPMixerProperty.BLUE_GAIN.getName(), "0", "255", 0f, 255f, Float.parseFloat(blueGainValue)), blueGainValue);
-							stats.put(group + EasyIPMixerConstant.HASH + "BlueGainCurrentValue", blueGainValue);
+							stats.put(group + EasyIPMixerConstant.HASH + EasyIPMixerConstant.BLUE_GAIN_CURRENT_VALUE, blueGainValue);
 						}
 						break;
 					case BLUE_GAIN:
@@ -553,21 +552,12 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 	 * {@inheritDoc}
 	 */
 	@Override
-	protected void internalInit() throws Exception {
-		super.internalInit();
-		this.createChannel();
-		currentPollingInterval = 1;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
 	protected void internalDestroy() {
 		if (localExtendedStatistics != null && localExtendedStatistics.getStatistics() != null && localExtendedStatistics.getControllableProperties() != null) {
 			localExtendedStatistics.getStatistics().clear();
 			localExtendedStatistics.getControllableProperties().clear();
 		}
+		currentPollingInterval = 1;
 		cacheKeyAndValue.clear();
 		super.internalDestroy();
 	}
@@ -1024,7 +1014,7 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 			} else {
 				addAdvancedControlProperties(advancedControllableProperties, stats,
 						createSlider(stats, volumePropertyName, min, max, Float.parseFloat(min), Float.parseFloat(max), Float.parseFloat(volumeValue)), volumeValue);
-				stats.put(propertyName + EasyIPMixerConstant.HASH + "VolumeCurrentValue(dB)", convertFloatToIntString(volumeValue));
+				stats.put(propertyName + EasyIPMixerConstant.HASH + EasyIPMixerConstant.VOLUME_CURRENT_VALUE, convertFloatToIntString(volumeValue));
 			}
 		}
 	}
@@ -1044,6 +1034,9 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 			String localCacheName = EasyIPMixerConstant.CROSSPOINT + output.getPropertyName() + EasyIPMixerConstant.HASH + output.getPropertyName();
 			String cacheValue = getDefaultValueForNullData(cacheKeyAndValue.get(localCacheName));
 			for (AudioInput input : AudioInput.values()) {
+				if (group.contains("USB") && input.getPropertyName().contains("USB")) {
+					continue;
+				}
 				propertyName = EasyIPMixerConstant.CROSSPOINT + group + EasyIPMixerConstant.HASH + input.getPropertyName() + EasyIPMixerConstant.ROUTE;
 				value = input.getValue();
 				status = EasyIPMixerConstant.ZERO;
@@ -1067,13 +1060,16 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 		for (AudioOutput output : AudioOutput.values()) {
 			String group = output.getPropertyName();
 			for (AudioInput input : AudioInput.values()) {
+				if (group.contains("USB") && input.getPropertyName().contains("USB")) {
+					continue;
+				}
 				propertyName = EasyIPMixerConstant.CROSSPOINT + group + EasyIPMixerConstant.HASH + input.getPropertyName() + EasyIPMixerConstant.GAIN_DB;
 				value = getDefaultValueForNullData(cacheKeyAndValue.get(propertyName));
 				if (EasyIPMixerConstant.NONE.equals(value)) {
 					stats.put(propertyName, value);
 				} else {
 					addAdvancedControlProperties(advancedControllableProperties, stats, createSlider(stats, propertyName, "-12", "12", -12.0f, 12.0f, Float.parseFloat(value)), value);
-					stats.put(EasyIPMixerConstant.CROSSPOINT + group + EasyIPMixerConstant.HASH + input.getPropertyName() + "GainCurrentValue(dB)", convertFloatToIntString(value));
+					stats.put(EasyIPMixerConstant.CROSSPOINT + group + EasyIPMixerConstant.HASH + input.getPropertyName() + EasyIPMixerConstant.GAIN_CURRENT_VALUE, convertFloatToIntString(value));
 				}
 			}
 		}
@@ -1144,9 +1140,13 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 	 * @return the string representation of the integer value of the input floatString
 	 */
 	public static String convertFloatToIntString(String floatString) {
-		float floatValue = Float.parseFloat(floatString);
-		int intValue = (int) floatValue;
-		return String.valueOf(intValue);
+		try {
+			float floatValue = Float.parseFloat(floatString);
+			int intValue = (int) floatValue;
+			return String.valueOf(intValue);
+		} catch (Exception e) {
+			return EasyIPMixerConstant.NONE;
+		}
 	}
 
 	/**
