@@ -110,7 +110,7 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 	private String enableCrosspointGain;
 
 	/**
-	 * isEnableCrosspointGain in boolean value
+	 * isEnableCrosspointGain in boolean value, if true the crosspoint gain will display
 	 */
 	private boolean isEnableCrosspointGain;
 
@@ -666,12 +666,13 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 	 * Retrieves camera color settings from the response and stores them in the cache.
 	 *
 	 * @param response the response containing camera color settings information
+	 * @param cameraIndex the index of camera
 	 */
 	private void retrieveCameraColor(String response, String cameraIndex) {
 		for (CameraColorSettings colorSettings : CameraColorSettings.values()) {
 			cacheKeyAndValue.put(EasyIPMixerConstant.VIDEO_INPUT + EasyIPMixerMapping.getNameByValue(cameraIndex) + EasyIPMixerConstant.HASH + colorSettings.getName(),
 					extractResponseValue(response, colorSettings.getCommand()));
-			if (colorSettings.equals(CameraColorSettings.AUTO_IRIS)) {
+			if (CameraColorSettings.AUTO_IRIS.equals(colorSettings)) {
 				response = response.replace("auto_iris", EasyIPMixerConstant.SPACE);
 			}
 			if (colorSettings.equals(CameraColorSettings.BLUE_GAIN)) {
@@ -764,10 +765,11 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 	}
 
 	/**
-	 * Retrieves the camera position by sending specific commands for PAN, TILT, and ZOOM.
-	 * Extracts the response values and stores them in the cache.
+	 * Retrieves camera position information (Pan, Tilt, Zoom) for a specific camera index and stores it in the cache.
 	 *
-	 * @throws FailedLoginException If the login to the system fails.
+	 * @param group the group identifier for the camera position information
+	 * @param index the index of the specific camera
+	 * @throws FailedLoginException if the login attempt fails during command execution
 	 */
 	private void retrieveCameraPosition(String group, String index) throws FailedLoginException {
 		String command = MonitoringCommand.PAN.getCommand().replace("$", index);
@@ -1000,7 +1002,6 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 			volumeValue = getDefaultValueForNullData(cacheKeyAndValue.get(volumePropertyName));
 			muteValue = getDefaultValueForNullData(cacheKeyAndValue.get(mutePropertyName));
 
-			//Mute
 			if (EasyIPMixerConstant.NONE.equals(muteValue)) {
 				stats.put(mutePropertyName, EasyIPMixerConstant.NONE);
 			} else {
@@ -1008,7 +1009,6 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 				addAdvancedControlProperties(advancedControllableProperties, stats, createSwitch(mutePropertyName, Integer.parseInt(status), EasyIPMixerConstant.OFF, EasyIPMixerConstant.ON), status);
 			}
 
-			//Volume
 			if (EasyIPMixerConstant.NONE.equals(volumeValue)) {
 				stats.put(volumePropertyName, EasyIPMixerConstant.NONE);
 			} else {

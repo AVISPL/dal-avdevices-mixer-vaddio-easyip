@@ -8,7 +8,7 @@ import java.util.Arrays;
 import java.util.Optional;
 
 /**
- * CameraColorSettings enum
+ * Enum representing different Camera Color Settings and their corresponding descriptions.
  *
  * @author Harry / Symphony Dev Team<br>
  * Created on 11/23/2023
