@@ -151,6 +151,24 @@ public class EasyIPMixerCommunicatorTest {
 	}
 
 	@Test
+	void testPreset() throws Exception {
+		easyIPMixerCommunicator.setConfigManagement("true");
+		extendedStatistic = (ExtendedStatistics) easyIPMixerCommunicator.getMultipleStatistics().get(0);
+		Map<String, String> statistics = extendedStatistic.getStatistics();
+
+		String property = "VideoInputEasyIP2#Preset";
+		String value = "Preset 3";
+		ControllableProperty controllableProperty = new ControllableProperty();
+		controllableProperty.setProperty(property);
+		controllableProperty.setValue(value);
+		easyIPMixerCommunicator.controlProperty(controllableProperty);
+
+		extendedStatistic = (ExtendedStatistics) easyIPMixerCommunicator.getMultipleStatistics().get(0);
+		statistics = extendedStatistic.getStatistics();
+		Assertions.assertEquals(value, statistics.get(property));
+	}
+
+	@Test
 	void testCrosspointRoute() throws Exception {
 		easyIPMixerCommunicator.setConfigManagement("true");
 		extendedStatistic = (ExtendedStatistics) easyIPMixerCommunicator.getMultipleStatistics().get(0);
