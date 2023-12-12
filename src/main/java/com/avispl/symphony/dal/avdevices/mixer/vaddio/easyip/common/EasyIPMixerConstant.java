@@ -22,7 +22,7 @@ public class EasyIPMixerConstant {
 	public static final String SET = "Set";
 	public static final String SETTING = "Setting";
 	public static final String REGEX_RESPONSE = "\u001B|\\[|0;37m|0m";
-	public static final String NETWORK_GROUP = "NetworkSettings#";
+	public static final String NETWORK_GROUP = "NetworkInformation#";
 	public static final String VIDEO_OUTPUT_GROUP = "VideoOutput#";
 	public static final String VIDEO_INPUT = "VideoInput";
 	public static final String SYSTEM_INFORMATION_GROUP = "SystemInformation#";
@@ -34,6 +34,7 @@ public class EasyIPMixerConstant {
 	public static final String VOLUME = "Volume";
 	public static final String GAIN = "Gain";
 	public static final String ROUTE = "Route";
+	public static final String USB = "USB";
 	public static final String HASH = "#";
 	public static final String DOT = ".";
 	public static final String DOT_REGEX = "\\.";

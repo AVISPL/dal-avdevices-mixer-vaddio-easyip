@@ -52,6 +52,18 @@ import com.avispl.symphony.dal.util.StringUtils;
 
 /**
  * EasyIPMixerCommunicator An implementation of SshCommunicator to provide communication and interaction with Vaddio Mixer EasyIP device
+ *  Monitoring
+ *  Network information
+ *  System Information
+ *
+ *  Controlling
+ *  Mute
+ *  Volume(dB)
+ *  Gain(dB)
+ *  Reboot
+ *  Video Mute
+ *  Audio Mute
+ *  Camera Settings
  *
  * @author Harry / Symphony Dev Team<br>
  * Created on 11/16/2023
@@ -471,6 +483,7 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 						if (newValue != null) {
 							command = propertyItem.getControlCommand().replace("$1", indexCamera).replace("$2", newValue);
 							sendCommandToControlDevice(command, value, propertyKey);
+							Thread.sleep(1000);
 							retrieveCameraPosition(group, indexCamera);
 							populateCameraPosition(stats, advancedControllableProperties, group);
 						}
@@ -1005,8 +1018,16 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 			if (EasyIPMixerConstant.NONE.equals(muteValue)) {
 				stats.put(mutePropertyName, EasyIPMixerConstant.NONE);
 			} else {
-				String status = EasyIPMixerConstant.ON_VALUE.equals(muteValue) ? "1" : "0";
-				addAdvancedControlProperties(advancedControllableProperties, stats, createSwitch(mutePropertyName, Integer.parseInt(status), EasyIPMixerConstant.OFF, EasyIPMixerConstant.ON), status);
+				if (EasyIPMixerConstant.ON_VALUE.equals(cacheKeyAndValue.get(EasyIPMixerProperty.AUDIO_MUTE.getName())) &&
+						(propertyName.equals(AudioInput.DANTE_IN_1.getPropertyName()) || propertyName.equals(AudioInput.DANTE_IN_2.getPropertyName())
+								|| propertyName.equals(AudioInput.DANTE_IN_3.getPropertyName()) || propertyName.equals(AudioInput.DANTE_IN_4.getPropertyName())
+								|| propertyName.equals(AudioInput.LINE_MIC_1.getPropertyName()) || propertyName.equals(AudioInput.LINE_MIC_2.getPropertyName())
+								|| propertyName.equals(AudioOutput.USB_RECORD_LEFT.getPropertyName()) || propertyName.equals(AudioOutput.USB_RECORD_RIGHT.getPropertyName()))) {
+					stats.put(mutePropertyName, uppercaseFirstCharacter(muteValue));
+				} else {
+					String status = EasyIPMixerConstant.ON_VALUE.equals(muteValue) ? "1" : "0";
+					addAdvancedControlProperties(advancedControllableProperties, stats, createSwitch(mutePropertyName, Integer.parseInt(status), EasyIPMixerConstant.OFF, EasyIPMixerConstant.ON), status);
+				}
 			}
 
 			if (EasyIPMixerConstant.NONE.equals(volumeValue)) {
@@ -1034,7 +1055,7 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 			String localCacheName = EasyIPMixerConstant.CROSSPOINT + output.getPropertyName() + EasyIPMixerConstant.HASH + output.getPropertyName();
 			String cacheValue = getDefaultValueForNullData(cacheKeyAndValue.get(localCacheName));
 			for (AudioInput input : AudioInput.values()) {
-				if (group.contains("USB") && input.getPropertyName().contains("USB")) {
+				if (group.contains(EasyIPMixerConstant.USB) && input.getPropertyName().contains(EasyIPMixerConstant.USB)) {
 					continue;
 				}
 				propertyName = EasyIPMixerConstant.CROSSPOINT + group + EasyIPMixerConstant.HASH + input.getPropertyName() + EasyIPMixerConstant.ROUTE;
@@ -1060,7 +1081,7 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 		for (AudioOutput output : AudioOutput.values()) {
 			String group = output.getPropertyName();
 			for (AudioInput input : AudioInput.values()) {
-				if (group.contains("USB") && input.getPropertyName().contains("USB")) {
+				if (group.contains(EasyIPMixerConstant.USB) && input.getPropertyName().contains(EasyIPMixerConstant.USB)) {
 					continue;
 				}
 				propertyName = EasyIPMixerConstant.CROSSPOINT + group + EasyIPMixerConstant.HASH + input.getPropertyName() + EasyIPMixerConstant.GAIN_DB;
@@ -1087,6 +1108,9 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 			String response = send(command.contains("\r") ? command : command.concat("\r"));
 			if (StringUtils.isNullOrEmpty(response) || response.contains(EasyIPMixerConstant.ERROR_RESPONSE) || !response.contains(EasyIPMixerConstant.OK)) {
 				throw new IllegalArgumentException(String.format("Error when control %s, Syntax error command: %s", name, response));
+			}
+			if (response.contains("Preset cannot be recalled, may not be set")) {
+				throw new IllegalArgumentException(String.format("Error when control %s, Preset cannot be recalled, may not be set", name));
 			}
 		} catch (Exception e) {
 			throw new IllegalArgumentException(String.format("Can't control %s with %s value.", name, value), e);
