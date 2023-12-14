@@ -67,11 +67,8 @@ public class EasyIPMixerCommunicatorTest {
 	void testGetMultipleStatisticsWith4PollingCycle() throws Exception {
 		easyIPMixerCommunicator.setEnableCrosspointGain("true");
 		extendedStatistic = (ExtendedStatistics) easyIPMixerCommunicator.getMultipleStatistics().get(0);
-		Thread.sleep(30000);
 		extendedStatistic = (ExtendedStatistics) easyIPMixerCommunicator.getMultipleStatistics().get(0);
-		Thread.sleep(30000);
 		extendedStatistic = (ExtendedStatistics) easyIPMixerCommunicator.getMultipleStatistics().get(0);
-		Thread.sleep(30000);
 		extendedStatistic = (ExtendedStatistics) easyIPMixerCommunicator.getMultipleStatistics().get(0);
 		List<AdvancedControllableProperty> advancedControllablePropertyList = extendedStatistic.getControllableProperties();
 		Map<String, String> statistics = extendedStatistic.getStatistics();
@@ -80,12 +77,30 @@ public class EasyIPMixerCommunicatorTest {
 	}
 
 	@Test
+	void testCameraPosition() throws Exception {
+		easyIPMixerCommunicator.setConfigManagement("true");
+		extendedStatistic = (ExtendedStatistics) easyIPMixerCommunicator.getMultipleStatistics().get(0);
+		Map<String, String> statistics = extendedStatistic.getStatistics();
+
+		String property = "VideoInputEasyIPCamera2#Pan";
+		String value = "";
+		ControllableProperty controllableProperty = new ControllableProperty();
+		controllableProperty.setProperty(property);
+		controllableProperty.setValue(value);
+		easyIPMixerCommunicator.controlProperty(controllableProperty);
+
+		extendedStatistic = (ExtendedStatistics) easyIPMixerCommunicator.getMultipleStatistics().get(0);
+		statistics = extendedStatistic.getStatistics();
+		Assertions.assertEquals(value, statistics.get(property));
+	}
+
+	@Test
 	void testColorSetting() throws Exception {
 		easyIPMixerCommunicator.setConfigManagement("true");
 		extendedStatistic = (ExtendedStatistics) easyIPMixerCommunicator.getMultipleStatistics().get(0);
 		Map<String, String> statistics = extendedStatistic.getStatistics();
 
-		String property = "VideoInputEasyIP2#Gamma";
+		String property = "VideoInputEasyIPCamera2#Gamma";
 		String value = "10.0";
 		ControllableProperty controllableProperty = new ControllableProperty();
 		controllableProperty.setProperty(property);
@@ -103,7 +118,7 @@ public class EasyIPMixerCommunicatorTest {
 		extendedStatistic = (ExtendedStatistics) easyIPMixerCommunicator.getMultipleStatistics().get(0);
 		Map<String, String> statistics = extendedStatistic.getStatistics();
 
-		String property = "VideoInputEasyIP2#Detail(Sharpness)";
+		String property = "VideoInputEasyIPCamera2#Detail(Sharpness)";
 		String value = "10.0";
 		ControllableProperty controllableProperty = new ControllableProperty();
 		controllableProperty.setProperty(property);
@@ -121,8 +136,8 @@ public class EasyIPMixerCommunicatorTest {
 		extendedStatistic = (ExtendedStatistics) easyIPMixerCommunicator.getMultipleStatistics().get(0);
 		Map<String, String> statistics = extendedStatistic.getStatistics();
 
-		String property = "VideoInputEasyIP2#AutoIris";
-		String value = "1";
+		String property = "VideoInputEasyIPCamera2#AutoIris";
+		String value = "0";
 		ControllableProperty controllableProperty = new ControllableProperty();
 		controllableProperty.setProperty(property);
 		controllableProperty.setValue(value);
@@ -138,7 +153,7 @@ public class EasyIPMixerCommunicatorTest {
 		extendedStatistic = (ExtendedStatistics) easyIPMixerCommunicator.getMultipleStatistics().get(0);
 		Map<String, String> statistics = extendedStatistic.getStatistics();
 
-		String property = "VideoInputEasyIP2#Iris";
+		String property = "VideoInputEasyIPCamera2#Iris";
 		String value = "f/6.2";
 		ControllableProperty controllableProperty = new ControllableProperty();
 		controllableProperty.setProperty(property);
@@ -156,7 +171,7 @@ public class EasyIPMixerCommunicatorTest {
 		extendedStatistic = (ExtendedStatistics) easyIPMixerCommunicator.getMultipleStatistics().get(0);
 		Map<String, String> statistics = extendedStatistic.getStatistics();
 
-		String property = "VideoInputEasyIP2#Preset";
+		String property = "VideoInputEasyIPCamera2#Preset";
 		String value = "Preset 3";
 		ControllableProperty controllableProperty = new ControllableProperty();
 		controllableProperty.setProperty(property);
@@ -174,8 +189,8 @@ public class EasyIPMixerCommunicatorTest {
 		extendedStatistic = (ExtendedStatistics) easyIPMixerCommunicator.getMultipleStatistics().get(0);
 		Map<String, String> statistics = extendedStatistic.getStatistics();
 
-		String property = "CrosspointOutput2#DanteIn1Route";
-		String value = "1";
+		String property = "CrosspointOutput1#LineMic1Route";
+		String value = "0";
 		ControllableProperty controllableProperty = new ControllableProperty();
 		controllableProperty.setProperty(property);
 		controllableProperty.setValue(value);
@@ -194,6 +209,46 @@ public class EasyIPMixerCommunicatorTest {
 
 		String property = "CrosspointUSBRecordRight#AutoMicMixerRoute";
 		String value = "0";
+		ControllableProperty controllableProperty = new ControllableProperty();
+		controllableProperty.setProperty(property);
+		controllableProperty.setValue(value);
+		easyIPMixerCommunicator.controlProperty(controllableProperty);
+
+		extendedStatistic = (ExtendedStatistics) easyIPMixerCommunicator.getMultipleStatistics().get(0);
+		statistics = extendedStatistic.getStatistics();
+		Assertions.assertEquals(value, statistics.get(property));
+	}
+
+	@Test
+	void testCameraStandby() throws Exception {
+		easyIPMixerCommunicator.setConfigManagement("true");
+		extendedStatistic = (ExtendedStatistics) easyIPMixerCommunicator.getMultipleStatistics().get(0);
+		Map<String, String> statistics = extendedStatistic.getStatistics();
+
+		String property = "VideoInputEasyIPCamera2#Standby";
+		String value = "1";
+		ControllableProperty controllableProperty = new ControllableProperty();
+		controllableProperty.setProperty(property);
+		controllableProperty.setValue(value);
+		easyIPMixerCommunicator.controlProperty(controllableProperty);
+
+		extendedStatistic = (ExtendedStatistics) easyIPMixerCommunicator.getMultipleStatistics().get(0);
+		statistics = extendedStatistic.getStatistics();
+		Assertions.assertEquals(value, statistics.get(property));
+	}
+
+	@Test
+	void testStandby() throws Exception {
+		easyIPMixerCommunicator.setConfigManagement("true");
+		easyIPMixerCommunicator.setEnableCrosspointGain("true");
+		extendedStatistic = (ExtendedStatistics) easyIPMixerCommunicator.getMultipleStatistics().get(0);
+		extendedStatistic = (ExtendedStatistics) easyIPMixerCommunicator.getMultipleStatistics().get(0);
+		extendedStatistic = (ExtendedStatistics) easyIPMixerCommunicator.getMultipleStatistics().get(0);
+		extendedStatistic = (ExtendedStatistics) easyIPMixerCommunicator.getMultipleStatistics().get(0);
+		Map<String, String> statistics = extendedStatistic.getStatistics();
+
+		String property = "SystemStandby";
+		String value = "1";
 		ControllableProperty controllableProperty = new ControllableProperty();
 		controllableProperty.setProperty(property);
 		controllableProperty.setValue(value);

@@ -32,9 +32,9 @@ public enum AudioInput {
 	/**
 	 * AudioInput constructor
 	 *
-	 * @name name of {@link #name}
-	 * @command command of {@link #value}
-	 * @command propertyName of {@link #propertyName}
+	 * @param name of {@link #name}
+	 * @param value of {@link #value}
+	 * @param propertyName of {@link #propertyName}
 	 */
 	AudioInput(String name, String value, String propertyName) {
 		this.name = name;
@@ -42,9 +42,9 @@ public enum AudioInput {
 		this.propertyName = propertyName;
 	}
 
-	private String name;
-	private String value;
-	private String propertyName;
+	private final String name;
+	private final String value;
+	private final String propertyName;
 
 	/**
 	 * Retrieves {@link #name}

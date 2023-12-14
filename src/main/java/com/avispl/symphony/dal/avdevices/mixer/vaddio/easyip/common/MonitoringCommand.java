@@ -32,8 +32,8 @@ public enum MonitoringCommand {
 	 * Constructor Instance
 	 *
 	 * @param name of {@link #name}
-	 * @param regex value of {@link #regex}
-	 * @command value of {@link #command}
+	 * @param command value of {@link #command}
+	 * @param regex of {@link #regex}
 	 */
 	MonitoringCommand(String name, String command, String regex) {
 		this.name = name;
@@ -41,9 +41,9 @@ public enum MonitoringCommand {
 		this.regex = regex;
 	}
 
-	final private String name;
-	final private String command;
-	final private String regex;
+	private final String name;
+	private final String command;
+	private final String regex;
 
 	/**
 	 * Retrieves {@link #name}

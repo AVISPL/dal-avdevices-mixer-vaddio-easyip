@@ -25,15 +25,15 @@ public enum NetworkInformation {
 	 * Constructor Instance
 	 *
 	 * @param name of {@link #name}
-	 * @command value of {@link #value}
+	 * @param value of {@link #value}
 	 */
 	NetworkInformation(String name, String value) {
 		this.name = name;
 		this.value = value;
 	}
 
-	final private String name;
-	final private String value;
+	private final String name;
+	private final String value;
 
 	/**
 	 * Retrieves {@link #name}

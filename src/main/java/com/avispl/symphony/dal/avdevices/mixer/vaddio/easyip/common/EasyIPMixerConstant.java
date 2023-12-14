@@ -41,6 +41,7 @@ public class EasyIPMixerConstant {
 	public static final String DASH = "-";
 	public static final String SPACE = " ";
 	public static final String ERROR_RESPONSE = "Syntax error";
+	public static final String ERROR = "ERROR";
 	public static final String OK = "OK";
 	public static final String NUMBER_ONE = "1";
 	public static final String ZERO = "0";
@@ -50,6 +51,8 @@ public class EasyIPMixerConstant {
 	public static final String OFF_VALUE = "off";
 	public static final String MANUAL = "Manual";
 	public static final String AUTO = "Auto";
+	public static final String SHARPNESS = "(Sharpness)";
+	public static final String SATURATION = "(Saturation)";
 	public static final String MUTE_REGEX = "mute:(.*?)\r\n";
 	public static final String VOLUME_REGEX = "volume:(.*?)\r\n";
 	public static final String PRESET_MESSAGE = "Please select a preset";

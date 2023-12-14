@@ -14,11 +14,11 @@ import java.util.Arrays;
  * @since 1.0.0
  */
 public enum SourceValueEnum {
-	INPUT_1("HDMI in", "input1"),
-	INPUT_2("Easy IP 1", "input2"),
-	INPUT_3("Easy IP 2", "input3"),
-	INPUT_4("Easy IP 3", "input4"),
-	INPUT_5("Easy IP 4", "input5"),
+	INPUT_1("HDMI In", "input1"),
+	INPUT_2("EasyIP Camera 1", "input2"),
+	INPUT_3("EasyIP Camera 2", "input3"),
+	INPUT_4("EasyIP Camera 3", "input4"),
+	INPUT_5("EasyIP Camera 4", "input5"),
 
 	;
 	private final String name;
