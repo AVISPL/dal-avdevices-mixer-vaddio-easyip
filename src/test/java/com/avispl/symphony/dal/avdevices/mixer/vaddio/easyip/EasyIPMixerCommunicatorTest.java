@@ -77,17 +77,37 @@ public class EasyIPMixerCommunicatorTest {
 	}
 
 	@Test
+	void testMasterMute() throws Exception {
+		easyIPMixerCommunicator.setConfigManagement("true");
+		extendedStatistic = (ExtendedStatistics) easyIPMixerCommunicator.getMultipleStatistics().get(0);
+		Map<String, String> statistics = extendedStatistic.getStatistics();
+
+		String property = "AudioMute";
+		String value = "1";
+		ControllableProperty controllableProperty = new ControllableProperty();
+		controllableProperty.setProperty(property);
+		controllableProperty.setValue(value);
+		easyIPMixerCommunicator.controlProperty(controllableProperty);
+
+		extendedStatistic = (ExtendedStatistics) easyIPMixerCommunicator.getMultipleStatistics().get(0);
+		statistics = extendedStatistic.getStatistics();
+		Assertions.assertEquals(value, statistics.get(property));
+	}
+
+	@Test
 	void testCameraPosition() throws Exception {
 		easyIPMixerCommunicator.setConfigManagement("true");
 		extendedStatistic = (ExtendedStatistics) easyIPMixerCommunicator.getMultipleStatistics().get(0);
 		Map<String, String> statistics = extendedStatistic.getStatistics();
 
 		String property = "VideoInputEasyIPCamera2#Pan";
-		String value = "";
+		String value = "0";
 		ControllableProperty controllableProperty = new ControllableProperty();
 		controllableProperty.setProperty(property);
 		controllableProperty.setValue(value);
+		long a = System.currentTimeMillis();
 		easyIPMixerCommunicator.controlProperty(controllableProperty);
+		System.out.println(System.currentTimeMillis() - a);
 
 		extendedStatistic = (ExtendedStatistics) easyIPMixerCommunicator.getMultipleStatistics().get(0);
 		statistics = extendedStatistic.getStatistics();
@@ -172,7 +192,7 @@ public class EasyIPMixerCommunicatorTest {
 		Map<String, String> statistics = extendedStatistic.getStatistics();
 
 		String property = "VideoInputEasyIPCamera2#Preset";
-		String value = "Preset 3";
+		String value = "Preset 4";
 		ControllableProperty controllableProperty = new ControllableProperty();
 		controllableProperty.setProperty(property);
 		controllableProperty.setValue(value);

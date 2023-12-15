@@ -303,7 +303,7 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 						String command = propertyItem.getControlCommand().replace("$", status);
 						sendCommandToControlDevice(command, status, propertyKey);
 						updateCachedDeviceData(cacheKeyAndValue, property, status);
-						retrieveAudioVolume();
+						retrieveMuteOfAudioVolumeWhenControlMasterMute();
 						populateAudioVolume(stats, advancedControllableProperties);
 						break;
 					case VIDEO_SOURCE:
@@ -333,7 +333,7 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 						response = sendCommandDetails(MonitoringCommand.VIDEO_MUTE.getCommand());
 						referenceValue = extractResponseValue(response, MonitoringCommand.VIDEO_MUTE.getRegex());
 						updateCachedDeviceData(cacheKeyAndValue, MonitoringCommand.VIDEO_MUTE.getName(), referenceValue);
-						retrieveAudioVolume();
+						retrieveMuteOfAudioVolumeWhenControlMasterMute();
 						populateAllData(stats, stats, advancedControllableProperties);
 						break;
 					case CAMERA_STANDBY:
@@ -342,7 +342,19 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 						command = propertyItem.getControlCommand().replace("$1", indexCamera).replace("$2", status);
 						sendCommandToControlDevice(command, status, propertyKey);
 						updateCachedDeviceData(cacheKeyAndValue, property, status);
-						retrieveMonitoring();
+						String colorResponse = sendCommandDetails(MonitoringCommand.CAMERA_COLOR.getCommand().replace("$", indexCamera));
+						retrieveCameraColor(colorResponse, indexCamera);
+						if (EasyIPMixerConstant.ZERO.equals(value)) {
+							cacheKeyAndValue.put(group + EasyIPMixerConstant.HASH + EasyIPMixerProperty.AUTO_IRIS.getName(), EasyIPMixerConstant.ON_VALUE);
+							cacheKeyAndValue.put(group + EasyIPMixerConstant.HASH + EasyIPMixerProperty.AUTO_WHITE_BALANCE.getName(), EasyIPMixerConstant.ON_VALUE);
+							cacheKeyAndValue.put(group + EasyIPMixerConstant.HASH + MonitoringCommand.PAN.getName(), EasyIPMixerConstant.PAN_HOME_VALUE);
+							cacheKeyAndValue.put(group + EasyIPMixerConstant.HASH + MonitoringCommand.TILT.getName(), EasyIPMixerConstant.TILT_HOME_VALUE);
+							cacheKeyAndValue.put(group + EasyIPMixerConstant.HASH + MonitoringCommand.ZOOM.getName(), EasyIPMixerConstant.ZOOM_HOME_VALUE);
+						} else {
+							cacheKeyAndValue.put(group + EasyIPMixerConstant.HASH + MonitoringCommand.PAN.getName(), EasyIPMixerConstant.PAN_STANDBY_VALUE);
+							cacheKeyAndValue.put(group + EasyIPMixerConstant.HASH + MonitoringCommand.TILT.getName(), EasyIPMixerConstant.TILT_STANDBY_VALUE);
+							cacheKeyAndValue.put(group + EasyIPMixerConstant.HASH + MonitoringCommand.ZOOM.getName(), EasyIPMixerConstant.ZOOM_STANDBY_VALUE);
+						}
 						populateMonitoringAndControllingData(stats, stats, advancedControllableProperties);
 						break;
 					case BACKLIGHT_COMPENSATION:
@@ -442,7 +454,8 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 						value = convertFloatToIntString(value);
 						command = propertyItem.getControlCommand().replace("$1", indexCamera).replace("$2", value);
 						sendCommandToControlDevice(command, value, propertyKey);
-						stats.put(property.replace("(Sharpness)", EasyIPMixerConstant.EMPTY).replace("(Saturation)", EasyIPMixerConstant.EMPTY) + EasyIPMixerConstant.CURRENT_VALUE, value);
+						stats.put(property.replace(EasyIPMixerConstant.SHARPNESS, EasyIPMixerConstant.EMPTY).replace(EasyIPMixerConstant.SATURATION, EasyIPMixerConstant.EMPTY) + EasyIPMixerConstant.CURRENT_VALUE,
+								value);
 						updateCachedDeviceData(cacheKeyAndValue, property, value);
 						break;
 					case IRIS:
@@ -490,9 +503,9 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 					case CAMERA_HOME:
 						indexCamera = EasyIPMixerMapping.getValueByName(group.replace(EasyIPMixerConstant.VIDEO_INPUT, EasyIPMixerConstant.EMPTY));
 						sendCommandToControlDevice(propertyItem.getControlCommand().replace("$1", indexCamera), EasyIPMixerConstant.HOME, propertyKey);
-						cacheKeyAndValue.put(group + EasyIPMixerConstant.HASH + MonitoringCommand.PAN.getName(), "0.0");
-						cacheKeyAndValue.put(group + EasyIPMixerConstant.HASH + MonitoringCommand.TILT.getName(), "0.0");
-						cacheKeyAndValue.put(group + EasyIPMixerConstant.HASH + MonitoringCommand.ZOOM.getName(), "1.0");
+						cacheKeyAndValue.put(group + EasyIPMixerConstant.HASH + MonitoringCommand.PAN.getName(), EasyIPMixerConstant.PAN_HOME_VALUE);
+						cacheKeyAndValue.put(group + EasyIPMixerConstant.HASH + MonitoringCommand.TILT.getName(), EasyIPMixerConstant.TILT_HOME_VALUE);
+						cacheKeyAndValue.put(group + EasyIPMixerConstant.HASH + MonitoringCommand.ZOOM.getName(), EasyIPMixerConstant.ZOOM_HOME_VALUE);
 						populateCameraPosition(stats, advancedControllableProperties, group);
 						break;
 					case CAMERA_PRESET:
@@ -501,9 +514,8 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 						if (newValue != null) {
 							command = propertyItem.getControlCommand().replace("$1", indexCamera).replace("$2", newValue);
 							sendCommandToControlDevice(command, value, propertyKey);
-							Thread.sleep(1000);
-							retrieveCameraPosition(group, indexCamera);
-							populateCameraPosition(stats, advancedControllableProperties, group);
+						} else {
+							throw new IllegalArgumentException("Please select valid value.");
 						}
 						break;
 					default:
@@ -765,6 +777,32 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 	}
 
 	/**
+	 * Retrieves the mute status of audio outputs and inputs, and stores them in the cache.
+	 *
+	 * @throws FailedLoginException if the login to the system fails
+	 */
+	private void retrieveMuteOfAudioVolumeWhenControlMasterMute() throws FailedLoginException {
+		String command;
+		String response;
+		for (AudioOutput output : AudioOutput.values()) {
+			if (output.equals(AudioOutput.USB_RECORD_LEFT) || output.equals(AudioOutput.USB_RECORD_RIGHT)) {
+				command = EasyIpMixerCommand.MUTE_MONITOR.replace("$", output.getValue());
+				response = sendCommandDetails(command);
+				cacheKeyAndValue.put(output.getPropertyName() + EasyIPMixerConstant.HASH + EasyIPMixerConstant.MUTE, extractResponseValue(response, EasyIPMixerConstant.MUTE_REGEX));
+			}
+		}
+
+		for (AudioInput input : AudioInput.values()) {
+			if (input.equals(AudioInput.AUTO_MIC_MIXER)) {
+				continue;
+			}
+			command = EasyIpMixerCommand.MUTE_MONITOR.replace("$", input.getValue());
+			response = sendCommandDetails(command);
+			cacheKeyAndValue.put(input.getPropertyName() + EasyIPMixerConstant.HASH + EasyIPMixerConstant.MUTE, extractResponseValue(response, EasyIPMixerConstant.MUTE_REGEX));
+		}
+	}
+
+	/**
 	 * Retrieves crosspoint gain information based on the specified part number.
 	 * For part 1, retrieves crosspoint gain information for the first half of AudioOutputs.
 	 * For part 2, retrieves crosspoint gain information for the second half of AudioOutputs.
@@ -792,27 +830,6 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 				cacheKeyAndValue.put(EasyIPMixerConstant.CROSSPOINT + group + EasyIPMixerConstant.HASH + input.getPropertyName() + EasyIPMixerConstant.GAIN_DB, replaceDraftInResponse(response, command));
 			}
 		}
-	}
-
-	/**
-	 * Retrieves camera position information (Pan, Tilt, Zoom) for a specific camera index and stores it in the cache.
-	 *
-	 * @param group the group identifier for the camera position information
-	 * @param index the index of the specific camera
-	 * @throws FailedLoginException if the login attempt fails during command execution
-	 */
-	private void retrieveCameraPosition(String group, String index) throws FailedLoginException {
-		String command = MonitoringCommand.PAN.getCommand().replace("$", index);
-		String response = sendCommandDetails(command);
-		cacheKeyAndValue.put(group + EasyIPMixerConstant.HASH + MonitoringCommand.PAN.getName(), replaceDraftInResponse(response, command));
-
-		command = MonitoringCommand.TILT.getCommand().replace("$", index);
-		response = sendCommandDetails(command);
-		cacheKeyAndValue.put(group + EasyIPMixerConstant.HASH + MonitoringCommand.TILT.getName(), replaceDraftInResponse(response, command));
-
-		command = MonitoringCommand.ZOOM.getCommand().replace("$", index);
-		response = sendCommandDetails(command);
-		cacheKeyAndValue.put(group + EasyIPMixerConstant.HASH + MonitoringCommand.ZOOM.getName(), replaceDraftInResponse(response, command));
 	}
 
 	/**
@@ -1246,15 +1263,20 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 	private void sendCommandToControlDevice(String command, String value, String name) {
 		try {
 			String response = send(command.contains("\r") ? command : command.concat("\r"));
-			if (StringUtils.isNullOrEmpty(response) || response.contains(EasyIPMixerConstant.ERROR_RESPONSE)
-					|| !response.contains(EasyIPMixerConstant.OK) || response.contains(EasyIPMixerConstant.ERROR)) {
+			if (StringUtils.isNullOrEmpty(response)) {
 				throw new IllegalArgumentException(String.format("Error when control %s, Syntax error command: %s", name, response));
 			}
 			if (response.contains("Preset cannot be recalled, may not be set")) {
 				throw new IllegalArgumentException(String.format("Error when control %s, Preset cannot be recalled, may not be set", name));
 			}
+			if (response.contains("Invalid routing request")) {
+				throw new IllegalArgumentException(String.format("Error when control %s, Route is unavailable", name));
+			}
+			if (response.contains(EasyIPMixerConstant.ERROR_RESPONSE) || !response.contains(EasyIPMixerConstant.OK) || response.contains(EasyIPMixerConstant.ERROR)) {
+				throw new IllegalArgumentException(String.format("Error when control %s, Syntax error command: %s", name, response));
+			}
 		} catch (Exception e) {
-			throw new IllegalArgumentException(String.format("Can't control %s with %s value.", name, value), e);
+			throw new IllegalArgumentException(String.format("Can't control %s with %s value. ", name, value) + e.getMessage());
 		}
 	}
 

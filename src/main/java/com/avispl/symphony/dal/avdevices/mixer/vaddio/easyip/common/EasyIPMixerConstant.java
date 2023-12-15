@@ -61,4 +61,10 @@ public class EasyIPMixerConstant {
 	public static final String IRIS_CURRENT_VALUE = "IrisCurrentValue";
 	public static final String RED_GAIN_CURRENT_VALUE = "RedGainCurrentValue";
 	public static final String BLUE_GAIN_CURRENT_VALUE = "BlueGainCurrentValue";
+	public static final String PAN_HOME_VALUE = "0.0";
+	public static final String TILT_HOME_VALUE = "0.0";
+	public static final String ZOOM_HOME_VALUE = "1.0";
+	public static final String PAN_STANDBY_VALUE = "-90.3";
+	public static final String TILT_STANDBY_VALUE = "-30";
+	public static final String ZOOM_STANDBY_VALUE = "1.0";
 }
