@@ -4,6 +4,8 @@
 
 package com.avispl.symphony.dal.avdevices.mixer.vaddio.easyip;
 
+import static java.util.concurrent.CompletableFuture.runAsync;
+
 import java.net.ConnectException;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
@@ -18,6 +20,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -71,6 +76,16 @@ import com.avispl.symphony.dal.util.StringUtils;
  * @since 1.0.0
  */
 public class EasyIPMixerCommunicator extends SshCommunicator implements Monitorable, Controller {
+
+	/**
+	 * To avoid timeout errors, caused by the unavailability of the control protocol, all polling-dependent communication operations (monitoring)
+	 * should be performed asynchronously. This executor service executes such operations.
+	 */
+	private ExecutorService executorService;
+	/**
+	 * Data collector
+	 */
+	private CompletableFuture dataCollector;
 
 	/**
 	 * cache to store key and value
@@ -476,21 +491,21 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 						indexCamera = EasyIPMixerMapping.getValueByName(group.replace(EasyIPMixerConstant.VIDEO_INPUT, EasyIPMixerConstant.EMPTY));
 						value = checkValidInput(1, 20, value);
 						command = propertyItem.getControlCommand().replace("$1", indexCamera).replace("$2", value);
-						sendCommandToControlDevice(command, value, propertyKey);
+						sendCommandToControlDeviceWithExecutor(command, value, propertyKey);
 						updateCachedDeviceData(cacheKeyAndValue, property, value);
 						break;
 					case CAMERA_PAN:
 						indexCamera = EasyIPMixerMapping.getValueByName(group.replace(EasyIPMixerConstant.VIDEO_INPUT, EasyIPMixerConstant.EMPTY));
-						value = checkValidInput(-150f, 150f, value);
+						value = checkValidInput(-156.3, 151.7, value);
 						command = propertyItem.getControlCommand().replace("$1", indexCamera).replace("$2", value);
-						sendCommandToControlDevice(command, value, propertyKey);
+						sendCommandToControlDeviceWithExecutor(command, value, propertyKey);
 						updateCachedDeviceData(cacheKeyAndValue, property, value);
 						break;
 					case CAMERA_TILT:
 						indexCamera = EasyIPMixerMapping.getValueByName(group.replace(EasyIPMixerConstant.VIDEO_INPUT, EasyIPMixerConstant.EMPTY));
-						value = checkValidInput(-30, 90, value);
+						value = checkValidInput(-30, 92.5, value);
 						command = propertyItem.getControlCommand().replace("$1", indexCamera).replace("$2", value);
-						sendCommandToControlDevice(command, value, propertyKey);
+						sendCommandToControlDeviceWithExecutor(command, value, propertyKey);
 						updateCachedDeviceData(cacheKeyAndValue, property, value);
 						break;
 					case CAMERA_FOCUS_MODE:
@@ -595,11 +610,22 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 	 * {@inheritDoc}
 	 */
 	@Override
+	protected void internalInit() throws Exception {
+		executorService = Executors.newFixedThreadPool(1);
+		super.internalInit();
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
 	protected void internalDestroy() {
 		if (localExtendedStatistics != null && localExtendedStatistics.getStatistics() != null && localExtendedStatistics.getControllableProperties() != null) {
 			localExtendedStatistics.getStatistics().clear();
 			localExtendedStatistics.getControllableProperties().clear();
 		}
+		dataCollector.cancel(true);
+		executorService.shutdownNow();
 		currentPollingInterval = 1;
 		cacheKeyAndValue.clear();
 		super.internalDestroy();
@@ -1303,6 +1329,29 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 	}
 
 	/**
+	 * Executes the 'sendCommandToControlDevice' method using an ExecutorService,
+	 * ensuring the command execution is performed asynchronously.
+	 *
+	 * @param command The command string to be executed.
+	 * @param value The value associated with the command.
+	 * @param name The name of the command.
+	 */
+	private void sendCommandToControlDeviceWithExecutor(String command, String value, String name) {
+		if (dataCollector == null || dataCollector.isDone()) {
+			dataCollector = runAsync(() -> {
+				reentrantLock.lock();
+				try {
+					sendCommandToControlDevice(command, value, name);
+				} catch (Exception ce) {
+					logger.debug("Exception white collecting device data.", ce);
+				} finally {
+					reentrantLock.unlock();
+				}
+			}, executorService);
+		}
+	}
+
+	/**
 	 * Extract value received from device
 	 *
 	 * @param response the response is response of device
@@ -1449,7 +1498,10 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 			if (min <= valueCompare && valueCompare <= max) {
 				DecimalFormat decimalFormat = new DecimalFormat("#.##");
 				String formattedNumber = decimalFormat.format(valueCompare);
-				return String.valueOf(formattedNumber);
+				if (!formattedNumber.contains(EasyIPMixerConstant.DOT)) {
+					formattedNumber = formattedNumber.concat(".0");
+				}
+				return formattedNumber;
 			}
 			if (valueCompare > max) {
 				initial = max;
@@ -1457,7 +1509,8 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 		} catch (Exception e) {
 			throw new IllegalArgumentException("The invalid input. " + e.getMessage());
 		}
-		return String.valueOf(initial);
+		String result = String.valueOf(initial);
+		return !result.contains(EasyIPMixerConstant.DOT) ? result.concat(".0") : result;
 	}
 
 	/**
