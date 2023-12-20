@@ -1302,7 +1302,7 @@ public class EasyIPMixerCommunicator extends SshCommunicator implements Monitora
 				throw new IllegalArgumentException(String.format("Error when control %s, Syntax error command: %s", name, response));
 			}
 		} catch (Exception e) {
-			throw new IllegalArgumentException(String.format("Can't control %s with %s value. ", name, value) + e.getMessage());
+			throw new IllegalArgumentException(String.format("Can't control %s with %s value. %s", name, value, e.getMessage()));
 		}
 	}
 
