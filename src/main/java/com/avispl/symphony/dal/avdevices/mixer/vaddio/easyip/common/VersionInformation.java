@@ -33,8 +33,8 @@ public enum VersionInformation {
 		this.value = value;
 	}
 
-	final private String name;
-	final private String value;
+	private final String name;
+	private final String value;
 
 	/**
 	 * Retrieves {@link #name}

@@ -32,16 +32,16 @@ public enum AudioOutput {
 	/**
 	 * AudioCrosspoint constructor
 	 *
-	 * @name name of {@link #propertyName}
-	 * @command command of {@link #value}
+	 * @param propertyName of {@link #propertyName}
+	 * @param value of {@link #value}
 	 */
 	AudioOutput(String propertyName, String value) {
 		this.propertyName = propertyName;
 		this.value = value;
 	}
 
-	private String propertyName;
-	private String value;
+	private final String propertyName;
+	private final String value;
 
 	/**
 	 * Retrieves {@link #propertyName}

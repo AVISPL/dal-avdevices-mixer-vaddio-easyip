@@ -60,7 +60,8 @@ public enum EasyIPMixerProperty {
 	 * Constructor Instance
 	 *
 	 * @param name of {@link #name}
-	 * @command value of {@link #group}
+	 * @param group of {@link #group}
+	 * @param controlCommand of {@link #controlCommand}
 	 */
 	EasyIPMixerProperty(String name, String group, String controlCommand) {
 		this.name = name;
@@ -68,9 +69,9 @@ public enum EasyIPMixerProperty {
 		this.controlCommand = controlCommand;
 	}
 
-	private String name;
-	private String group;
-	private String controlCommand;
+	private final String name;
+	private final String group;
+	private final String controlCommand;
 
 	/**
 	 * Retrieves {@link #name}
